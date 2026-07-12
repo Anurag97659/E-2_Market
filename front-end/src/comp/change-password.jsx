@@ -1,115 +1,147 @@
-import React,{useState} from "react";
-import {Link} from "react-router-dom";
+import React, { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import Navbar from "./Navbar";
 
-function ChangePassword(){
-    const[oldPassword,setoldpassword] = useState('');
-    const[newPassword,setnewpassword] = useState('');
-    const[confirmPassword,setconfirmpassword] = useState('');
-    const submit=(e)=>{
-        e.preventDefault();
-        if(newPassword !== confirmPassword){
-            alert('password not matched');
-        }
-      try{
-        fetch('http://localhost:8000/e-2market/v1/users/changePassword',{
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({oldPassword,newPassword,confirmPassword}),
-            credentials: 'include',
-        })
-            .then((res)=>res.json())
-            .then((data)=>{
-                if(data.error){
-                    alert(data.error);
-                }else{
-                    alert('Password changed successful');
-                    window.location.href = '/login';
-                }
-            })
-            .catch((error)=>{
-                alert("password change failed file change-password.jsx error");
-            });
-    
-    } catch(error){
-        alert(error);
-        
-    }
-    }
-  
-   
-  return(
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-4">
-      <div className="w-full max-w-md bg-white/10 backdrop-blur-md rounded-2xl shadow-2xl p-8 border border-white/20">
-        <h2 className="text-3xl font-bold text-white mb-8 text-center tracking-tight">
-          Change Password
-        </h2>
-        <form onSubmit={submit} id="form" className="space-y-6">
-          <div>
-            <label
-              htmlFor="old"
-              className="block text-sm font-semibold text-gray-100 mb-2"
-            >
-              Old Password
-            </label>
-            <input
-              type="password"
-              id="old"
-              placeholder="Enter old password"
-              value={oldPassword}
-              onChange={(e)=>setoldpassword(e.target.value)}
-              required
-              className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition duration-200"
-            />
-          </div>
+function ChangePassword() {
+  const [oldPassword, setOldPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [alert, setAlert] = useState(null);
+  const navigate = useNavigate();
 
-          <div>
-            <label
-              htmlFor="new"
-              className="block text-sm font-semibold text-gray-100 mb-2"
-            >
-              New Password
-            </label>
-            <input
-              type="password"
-              id="new"
-              placeholder="Enter new password"
-              value={newPassword}
-              onChange={(e)=>setnewpassword(e.target.value)}
-              required
-              className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition duration-200"
-            />
-          </div>
+  const showAlert = (msg, type = "error") => {
+    setAlert({ msg, type });
+    setTimeout(() => setAlert(null), 4000);
+  };
 
-          <div>
-            <label
-              htmlFor="confirm"
-              className="block text-sm font-semibold text-gray-100 mb-2"
-            >
-              Confirm Password
-            </label>
-            <input
-              type="password"
-              id="confirm"
-              placeholder="Confirm password"
-              value={confirmPassword}
-              onChange={(e)=>setconfirmpassword(e.target.value)}
-              required
-              className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition duration-200"
-            />
-          </div>
+  const submit = async (e) => {
+    e.preventDefault();
+    if (newPassword !== confirmPassword) { showAlert("Passwords do not match"); return; }
+    if (newPassword.length < 8) { showAlert("Password must be at least 8 characters"); return; }
+    setLoading(true);
+    try {
+      const res = await fetch("http://localhost:8000/e-2market/v1/users/changePassword", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ oldPassword, newPassword, confirmPassword }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showAlert("Password changed successfully!", "success");
+        setTimeout(() => navigate("/profile"), 1200);
+      } else showAlert(data.message || "Password change failed");
+    } catch { showAlert("Network error"); }
+    setLoading(false);
+  };
 
-          <button
-            type="submit"
-            className="w-full bg-gradient-to-r from-purple-600 to-purple-700 text-white font-semibold py-3 rounded-lg hover:from-purple-700 hover:to-purple-800 transition duration-300 transform hover:scale-105 shadow-lg"
-          >
+  const inputStyle = {
+    width: "100%",
+    padding: "12px 14px",
+    background: "rgba(51,65,85,0.5)",
+    border: "1px solid rgba(100,116,139,0.5)",
+    borderRadius: "10px",
+    color: "#fff",
+    fontSize: "14px",
+    outline: "none",
+    boxSizing: "border-box",
+  };
+
+  return (
+    <div style={{ minHeight: "100vh", background: "linear-gradient(135deg,#0f172a 0%,#1e1b4b 50%,#0f172a 100%)" }}>
+      <Navbar />
+
+      {alert && (
+        <div style={{
+          position: "fixed",
+          top: "80px",
+          left: "50%",
+          transform: "translateX(-50%)",
+          background: alert.type === "success" ? "rgba(16,185,129,0.15)" : "rgba(239,68,68,0.12)",
+          border: `1px solid ${alert.type === "success" ? "#10b981" : "#ef4444"}`,
+          color: alert.type === "success" ? "#6ee7b7" : "#fca5a5",
+          padding: "12px 28px",
+          borderRadius: "10px",
+          fontWeight: "600",
+          fontSize: "14px",
+          zIndex: 300,
+          backdropFilter: "blur(12px)",
+          whiteSpace: "nowrap",
+        }}>
+          {alert.msg}
+        </div>
+      )}
+
+      <div style={{ maxWidth: "460px", margin: "40px auto", padding: "0 24px" }}>
+        <div style={{
+          background: "rgba(30,27,75,0.7)",
+          backdropFilter: "blur(20px)",
+          borderRadius: "20px",
+          border: "1px solid rgba(139,92,246,0.25)",
+          padding: "36px",
+        }}>
+          <h2 style={{
+            textAlign: "center",
+            fontSize: "24px",
+            fontWeight: "900",
+            background: "linear-gradient(90deg,#60a5fa,#a855f7,#ec4899)",
+            WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent",
+            marginBottom: "28px",
+          }}>
             Change Password
-          </button>
-        </form>
+          </h2>
+
+          <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+            {[
+              { label: "Old Password", value: oldPassword, setter: setOldPassword, placeholder: "Current password" },
+              { label: "New Password", value: newPassword, setter: setNewPassword, placeholder: "Min 8 characters" },
+              { label: "Confirm New Password", value: confirmPassword, setter: setConfirmPassword, placeholder: "Repeat new password" },
+            ].map((field) => (
+              <div key={field.label}>
+                <label style={{ display: "block", fontSize: "11px", fontWeight: "700", color: "#94a3b8", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "6px" }}>
+                  {field.label}
+                </label>
+                <input
+                  style={inputStyle}
+                  type="password"
+                  value={field.value}
+                  onChange={(e) => field.setter(e.target.value)}
+                  placeholder={field.placeholder}
+                  required
+                />
+              </div>
+            ))}
+
+            <button
+              type="submit"
+              disabled={loading}
+              style={{
+                padding: "13px",
+                background: loading ? "#374151" : "linear-gradient(135deg,#6d28d9,#a855f7,#ec4899)",
+                color: "#fff",
+                border: "none",
+                borderRadius: "12px",
+                fontWeight: "700",
+                fontSize: "15px",
+                cursor: loading ? "not-allowed" : "pointer",
+                marginTop: "8px",
+              }}
+            >
+              {loading ? "Changing..." : "Change Password"}
+            </button>
+          </form>
+
+          <p style={{ textAlign: "center", marginTop: "20px", fontSize: "13px", color: "#64748b" }}>
+            <Link to="/profile" style={{ color: "#c084fc", fontWeight: "700", textDecoration: "none" }}>
+              Back to Profile
+            </Link>
+          </p>
+        </div>
       </div>
     </div>
   );
 }
 
-export default  ChangePassword;
+export default ChangePassword;

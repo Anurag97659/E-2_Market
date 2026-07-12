@@ -1,165 +1,231 @@
-import React,{ useEffect, useState } from "react";
-import{ Link } from "react-router-dom";
+import React, { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import Navbar from "./Navbar";
 
-function Orders(){
-    const [username, setUsername] = useState("");
-    const [orderItems, setOrderItems] = useState([]);
+function Orders() {
+  const [orderItems, setOrderItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [alert, setAlert] = useState(null);
 
-    useEffect(() =>{
-        fetch("http://localhost:8000/e-2market/v1/users/getUsername",{
-            method: "GET",
-            credentials: "include",
-        })
-            .then((res) =>{
-                if(res.status === 401){
-                    alert("Session expired. Please login again.");
-                    window.location.href = "/login";
-                }
-                return res.json();
-            })
-            .then((data) =>{
-                setUsername(String(data.data.username).toUpperCase());
-            })
-            .catch((error) =>{
-                console.error("Username error:", error);
-            });
-    }, []);
+  const showAlert = (msg, type = "error") => {
+    setAlert({ msg, type });
+    setTimeout(() => setAlert(null), 4000);
+  };
 
-    useEffect(() =>{
-        fetch("http://localhost:8000/e-2market/v1/users/getorderlist",{
-            method: "GET",
-            credentials: "include",
-        })
-            .then((res) => res.json())
-            .then((data) =>{
-                setOrderItems(
-                    Array.isArray(data?.data?.orders)
-                        ? data.data.orders
-                        : []
-                );
-            })
-            .catch((error) =>{
-                console.error("Order fetch error:", error);
-                setOrderItems([]);
-            });
-    }, []);
+  useEffect(() => {
+    fetch("http://localhost:8000/e-2market/v1/users/getorderlist", {
+      credentials: "include",
+    })
+      .then((r) => {
+        if (r.status === 401) { window.location.href = "/login"; return; }
+        return r.json();
+      })
+      .then((d) => {
+        setOrderItems(Array.isArray(d?.data) ? d.data : []);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, []);
 
-    const cancelOrder =(productId) =>{
-        if(!window.confirm("Are you sure you want to cancel this order?")){
-            return;
-        }
+  const cancelOrder = async (orderId) => {
+    if (!window.confirm("Cancel this order?")) return;
+    try {
+      const res = await fetch("http://localhost:8000/e-2market/v1/users/cancelOrder", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showAlert("Order cancelled", "success");
+        setOrderItems((prev) => prev.filter((o) => o._id !== orderId));
+      } else showAlert(data.message || "Cancel failed");
+    } catch { showAlert("Network error"); }
+  };
 
-        fetch("http://localhost:8000/e-2market/v1/users/cancelOrder",{
-            method: "POST",
-            credentials: "include",
-            headers:{
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ productId }),
-        })
-            .then((res) => res.json())
-            .then((data) =>{
-                alert(data.message || "Order cancelled");
+  const statusColor = (status) => status === "delivered" ? "#10b981" : "#f59e0b";
+  const statusBg = (status) => status === "delivered" ? "rgba(16,185,129,0.12)" : "rgba(245,158,11,0.12)";
+  const statusBorder = (status) => status === "delivered" ? "rgba(16,185,129,0.3)" : "rgba(245,158,11,0.3)";
+  const statusLabel = (status) => status === "delivered" ? "Delivered" : "On the Way";
 
-                // Update UI
-                setOrderItems(
-                    orderItems.filter((item) => item._id !== productId)
-                );
-            })
-            .catch((error) =>{
-                console.error("Cancel error:", error);
-                alert("Failed to cancel order");
-            });
-    };
+  return (
+    <div style={{ minHeight: "100vh", background: "linear-gradient(135deg,#0f172a 0%,#1e1b4b 50%,#0f172a 100%)" }}>
+      <Navbar />
 
-    // Logout
-    const logout =() =>{
-        fetch("http://localhost:8000/e-2market/v1/users/logout",{
-            method: "POST",
-            credentials: "include",
-        })
-            .then((res) =>{
-                if(res.status === 200){
-                    alert("Logged out successfully");
-                    window.location.href = "/login";
-                } else{
-                    alert("Logout failed");
-                }
-            })
-            .catch((error) =>{
-                console.error("Logout error:", error);
-            });
-
-               
-};
-
-    return(
-        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex">
-            <div className="absolute inset-0 bg-grid-white/10 bg-[size:20px_20px]"></div>
-            <div className="absolute top-0 left-1/4 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl"></div>
-            <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl"></div>
-
-            {/* Sidebar */}
-            <div className="w-64 h-screen fixed bg-slate-800/80 backdrop-blur-2xl shadow-lg p-6 flex flex-col justify-between border-r border-purple-500/20">
-                <div>
-                    <h2 className="text-2xl font-black bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent mb-8">
-                        Orders
-                    </h2>
-
-                    <div className="space-y-1">
-                        <Link to="/profile" className="block text-slate-300 text-sm py-3 px-4 hover:bg-purple-500/20 rounded transition">Profile</Link>
-                        <Link to="/mycart" className="block text-slate-300 text-sm py-3 px-4 hover:bg-purple-500/20 rounded transition">My Cart</Link>
-                        <Link to="/dash" className="block text-slate-300 text-sm py-3 px-4 hover:bg-purple-500/20 rounded transition">Dashboard</Link>
-                        <Link to="/search" className="block text-slate-300 text-sm py-3 px-4 hover:bg-purple-500/20 rounded transition">Search</Link>
-                        <Link to="/Change-details" className="block text-slate-300 text-sm py-3 px-4 hover:bg-purple-500/20 rounded transition">Change Details</Link>
-                        <Link to="/Change-password" className="block text-slate-300 text-sm py-3 px-4 hover:bg-purple-500/20 rounded transition">Change Password</Link>
-                    </div>
-                </div>
-
-                <button onClick={logout} className="w-full bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-white py-2 rounded-lg hover:shadow-lg transition font-semibold text-sm">
-                    Logout
-                </button>
-            </div>
-
-            {/* Main Content */}
-            <div className="flex-1 ml-64 p-6 relative z-10">
-                <div className="max-w-4xl mx-auto">
-                    <h1 className="text-3xl font-black bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent mb-2">
-                        Your Orders
-                    </h1>
-                    <p className="text-slate-400 mb-8">Welcome, {username}</p>
-
-                    {orderItems.length > 0 ? (
-                        <div className="space-y-4">
-                            {orderItems.map((product) => (
-                                <div key={product._id} className="bg-slate-800/80 backdrop-blur-2xl border border-purple-500/20 rounded-xl p-6 flex gap-6 hover:shadow-2xl hover:border-purple-500/40 transition">
-                                    <img src={product.Image} alt={product.Title} className="w-32 h-32 object-cover rounded-lg" />
-                                    <div className="flex-1">
-                                        <h3 className="text-lg font-bold text-slate-100">{product.Title}</h3>
-                                        <p className="text-slate-400 text-sm mt-2">
-                                            Price: <span className="font-bold text-purple-400">₹{product.Price}</span>
-                                        </p>
-                                        <div className="mt-4 flex gap-3 items-center">
-                                            <span className="bg-green-500/20 text-green-400 text-xs font-semibold px-3 py-1 rounded-lg border border-green-500/30">
-                                                On The Way
-                                            </span>
-                                            <button onClick={() => cancelOrder(product._id)} className="bg-red-600/80 text-white px-3 py-1 rounded-lg text-xs hover:bg-red-500 transition border border-red-500/30">
-                                                Cancel
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    ) : (
-                        <div className="bg-slate-800/80 backdrop-blur-2xl border border-purple-500/20 rounded-xl p-12 text-center">
-                            <p className="text-slate-400 text-lg">You haven't placed any orders yet</p>
-                        </div>
-                    )}
-                </div>
-            </div>
+      {alert && (
+        <div style={{
+          position: "fixed",
+          top: "80px",
+          left: "50%",
+          transform: "translateX(-50%)",
+          background: alert.type === "success" ? "rgba(16,185,129,0.15)" : "rgba(239,68,68,0.12)",
+          border: `1px solid ${alert.type === "success" ? "#10b981" : "#ef4444"}`,
+          color: alert.type === "success" ? "#6ee7b7" : "#fca5a5",
+          padding: "12px 28px",
+          borderRadius: "10px",
+          fontWeight: "600",
+          fontSize: "14px",
+          zIndex: 300,
+          backdropFilter: "blur(12px)",
+          whiteSpace: "nowrap",
+        }}>
+          {alert.msg}
         </div>
-    );
+      )}
+
+      <div style={{ maxWidth: "900px", margin: "0 auto", padding: "32px 24px" }}>
+        <h1 style={{
+          fontSize: "28px",
+          fontWeight: "900",
+          background: "linear-gradient(90deg,#60a5fa,#a855f7,#ec4899)",
+          WebkitBackgroundClip: "text",
+          WebkitTextFillColor: "transparent",
+          marginBottom: "28px",
+        }}>
+          Your Orders
+        </h1>
+
+        {loading ? (
+          <div style={{ textAlign: "center", padding: "60px", color: "#64748b" }}>Loading orders...</div>
+        ) : orderItems.length === 0 ? (
+          <div style={{
+            background: "rgba(30,27,75,0.6)",
+            border: "1px solid rgba(139,92,246,0.2)",
+            borderRadius: "16px",
+            padding: "60px",
+            textAlign: "center",
+          }}>
+            <p style={{ color: "#64748b", fontSize: "16px" }}>You have not placed any orders yet.</p>
+            <Link to="/" style={{ color: "#c084fc", fontWeight: "700", textDecoration: "none", marginTop: "12px", display: "inline-block" }}>
+              Browse Products
+            </Link>
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+            {orderItems.map((order) => {
+              const product = order.product || {};
+              const orderedAt = new Date(order.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+              return (
+                <div key={order._id} style={{
+                  background: "rgba(30,27,75,0.6)",
+                  border: "1px solid rgba(139,92,246,0.2)",
+                  borderRadius: "16px",
+                  padding: "20px",
+                  display: "flex",
+                  gap: "20px",
+                }}>
+                  {/* Product image */}
+                  <Link to={`/product_page/${product._id}`} style={{ display: "block", flexShrink: 0 }}>
+                    <img
+                      src={product.Thumbnail}
+                      alt={product.Title}
+                      style={{ width: "100px", height: "100px", objectFit: "cover", borderRadius: "10px" }}
+                    />
+                  </Link>
+
+                  <div style={{ flex: 1 }}>
+                    <Link to={`/product_page/${product._id}`} style={{ textDecoration: "none" }}>
+                      <h3 style={{ color: "#e2e8f0", fontWeight: "700", fontSize: "16px", marginBottom: "4px" }}>
+                        {product.Title}
+                      </h3>
+                    </Link>
+                    <p style={{ color: "#94a3b8", fontSize: "13px", marginBottom: "2px" }}>
+                      Rs.{order.priceAtOrder} x {order.quantity} = <span style={{ color: "#c084fc", fontWeight: "700" }}>Rs.{(order.priceAtOrder * order.quantity).toLocaleString()}</span>
+                    </p>
+                    <p style={{ color: "#64748b", fontSize: "12px", marginBottom: "12px" }}>
+                      Ordered on {orderedAt}
+                    </p>
+
+                    {/* Status and OTP */}
+                    <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
+                      <span style={{
+                        background: statusBg(order.status),
+                        border: `1px solid ${statusBorder(order.status)}`,
+                        color: statusColor(order.status),
+                        padding: "4px 12px",
+                        borderRadius: "6px",
+                        fontSize: "12px",
+                        fontWeight: "700",
+                      }}>
+                        {statusLabel(order.status)}
+                      </span>
+
+                      {order.status !== "delivered" && (
+                        <>
+                          <div style={{
+                            background: "rgba(124,58,237,0.12)",
+                            border: "1px solid rgba(124,58,237,0.3)",
+                            borderRadius: "8px",
+                            padding: "6px 14px",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "8px",
+                          }}>
+                            <span style={{ color: "#94a3b8", fontSize: "11px", fontWeight: "600" }}>DELIVERY OTP</span>
+                            <span style={{ color: "#c084fc", fontSize: "18px", fontWeight: "900", letterSpacing: "4px" }}>
+                              {order.otp}
+                            </span>
+                          </div>
+                          <span style={{ color: "#475569", fontSize: "11px" }}>Share with seller on delivery</span>
+                        </>
+                      )}
+
+                      {order.status === "delivered" && !order.review && (
+                        <Link to={`/product_page/${product._id}#reviews`} style={{
+                          padding: "6px 14px",
+                          background: "linear-gradient(135deg,#f59e0b,#d97706)",
+                          color: "#fff",
+                          borderRadius: "8px",
+                          textDecoration: "none",
+                          fontSize: "12px",
+                          fontWeight: "700",
+                        }}>
+                          Write a Review
+                        </Link>
+                      )}
+
+                      {order.status === "delivered" && order.review && (
+                        <span style={{
+                          background: "rgba(16,185,129,0.12)",
+                          border: "1px solid rgba(16,185,129,0.3)",
+                          color: "#6ee7b7",
+                          padding: "4px 12px",
+                          borderRadius: "6px",
+                          fontSize: "12px",
+                          fontWeight: "600",
+                        }}>
+                          Reviewed
+                        </span>
+                      )}
+
+                      {order.status !== "delivered" && (
+                        <button
+                          onClick={() => cancelOrder(order._id)}
+                          style={{
+                            padding: "6px 14px",
+                            background: "rgba(220,38,38,0.12)",
+                            border: "1px solid rgba(220,38,38,0.3)",
+                            color: "#fca5a5",
+                            borderRadius: "8px",
+                            fontSize: "12px",
+                            fontWeight: "700",
+                            cursor: "pointer",
+                          }}
+                        >
+                          Cancel Order
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
 
 export default Orders;

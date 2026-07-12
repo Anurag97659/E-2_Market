@@ -1,57 +1,29 @@
-import React,{useEffect,useState} from "react";
-import {Link} from "react-router-dom";
+import React, { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import Navbar from "./Navbar";
 
 function Search() {
- const[username,setUsername]=useState("");
- const[result,setResult]=useState([]);
- const[searchQuery,setSearchQuery]=useState("");
- const[category,setCategory]=useState("");
- const[minPrice,setMinPrice]=useState("");
- const[maxPrice,setMaxPrice]=useState("");
- const[sortBy,setSortBy]=useState("");
- const[sortOrder,setSortOrder]=useState("asc");
+  const [result, setResult] = useState([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [category, setCategory] = useState("");
+  const [minPrice, setMinPrice] = useState("");
+  const [maxPrice, setMaxPrice] = useState("");
+  const [sortBy, setSortBy] = useState("");
+  const [sortOrder, setSortOrder] = useState("asc");
+  const [searched, setSearched] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [alert, setAlert] = useState(null);
+  const navigate = useNavigate();
 
-  useEffect(()=>{
-    fetch("http://localhost:8000/e-2market/v1/users/getUsername",{
-      method: "GET",
-      credentials: "include",
-    })
-      .then((res)=>{
-        if (res.status === 401) {
-          alert("Session expired. Please login again.");
-          window.location.href="/login";
-        }
-        return res.json();
-      })
-      .then((data)=>{
-        setUsername(String(data.data.username).toUpperCase());
-      })
-      .catch((error)=>{
-        console.error("Error fetching user details:",error);
-      });
-  },[]);
-
-  const logout=()=>{
-    fetch("http://localhost:8000/e-2market/v1/users/logout",{
-      method: "POST",
-      credentials: "include",
-    })
-      .then((res)=>{
-        if (res.status === 200) {
-          alert("Logged out successfully");
-          window.location.href="/login";
-        } else {
-          alert("Logout failed. Please try again.");
-        }
-      })
-      .catch((error)=>{
-        console.error("Error logging out:",error);
-      });
+  const showAlert = (msg, type = "error") => {
+    setAlert({ msg, type });
+    setTimeout(() => setAlert(null), 4000);
   };
 
-  const submit=(e)=>{
+  const submit = async (e) => {
     e.preventDefault();
-    const query=new URLSearchParams({
+    setLoading(true);
+    const query = new URLSearchParams({
       search: searchQuery,
       category,
       minPrice,
@@ -60,132 +32,207 @@ function Search() {
       sortOrder,
     }).toString();
 
-    fetch(`http://localhost:8000/e-2market/v1/products/search?${query}`,{
-      method: "GET",
-      credentials: "include",
-    })
-      .then((res)=>{
-        if (res.status === 401) {
-          alert("Session expired. Please login again.");
-          window.location.href="/login";
-        }
-        return res.json();
-      })
-      .then((data)=>{
-        setResult(data?.data || []);
-      })
-      .catch((error)=>{
-        console.error("Error fetching search results:",error);
+    try {
+      const res = await fetch(`http://localhost:8000/e-2market/v1/products/search?${query}`, {
+        credentials: "include",
       });
+      const data = await res.json();
+      setResult(data?.data || []);
+      setSearched(true);
+    } catch { showAlert("Search failed"); }
+    setLoading(false);
   };
 
-  const addToCart=(productId)=>{
-    fetch("http://localhost:8000/e-2market/v1/products/addToCart",{
-      method: "POST",
-      credentials: "include",
-      headers:{"Content-Type": "application/json" },
-      body: JSON.stringify({ productId }),
-    })
-      .then((res)=>res.json())
-      .then((data)=>{
-        alert(data.message || "Product added to cart!");
-      })
-      .catch((error)=>{
-        console.error("Error adding product to cart:",error);
-        alert("You are the owner of this product");
+  const addToCart = async (productId) => {
+    try {
+      const res = await fetch("http://localhost:8000/e-2market/v1/products/addToCart", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ productId, quantity: 1 }),
       });
+      if (res.status === 401) { navigate("/login"); return; }
+      const data = await res.json();
+      if (res.ok) showAlert("Added to cart", "success");
+      else showAlert(data.message || "Failed to add to cart");
+    } catch { showAlert("Network error"); }
+  };
+
+  const inputStyle = {
+    padding: "10px 14px",
+    background: "rgba(51,65,85,0.5)",
+    border: "1px solid rgba(100,116,139,0.4)",
+    borderRadius: "10px",
+    color: "#e2e8f0",
+    fontSize: "14px",
+    outline: "none",
+    width: "100%",
+    boxSizing: "border-box",
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex">
-      <div className="w-64 h-screen fixed bg-gradient-to-b from-slate-800/80 to-slate-900/80 backdrop-blur-xl shadow-2xl p-6 flex flex-col justify-between border-r border-purple-500/20">
-        <div>
-          <h2 className="text-2xl font-black bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent mb-8 text-center">Search</h2>
-          <nav className="space-y-2">
-            <Link to="/dash" className="block text-slate-300 font-medium py-3 px-4 rounded-lg hover:bg-purple-500/20 hover:text-purple-300 transition-all duration-200 border border-transparent hover:border-purple-500/30">Dashboard</Link>
-            <Link to="/mycart" className="block text-slate-300 font-medium py-3 px-4 rounded-lg hover:bg-purple-500/20 hover:text-purple-300 transition-all duration-200 border border-transparent hover:border-purple-500/30">My Cart</Link>
-            <Link to="/profile" className="block text-slate-300 font-medium py-3 px-4 rounded-lg hover:bg-purple-500/20 hover:text-purple-300 transition-all duration-200 border border-transparent hover:border-purple-500/30">Profile</Link>
-            <Link to="/orders" className="block text-slate-300 font-medium py-3 px-4 rounded-lg hover:bg-purple-500/20 hover:text-purple-300 transition-all duration-200 border border-transparent hover:border-purple-500/30">Orders</Link>
-            <Link to="/Change-details" className="block text-slate-300 font-medium py-3 px-4 rounded-lg hover:bg-purple-500/20 hover:text-purple-300 transition-all duration-200 border border-transparent hover:border-purple-500/30">Change Details</Link>
-            <Link to="/Change-password" className="block text-slate-300 font-medium py-3 px-4 rounded-lg hover:bg-purple-500/20 hover:text-purple-300 transition-all duration-200 border border-transparent hover:border-purple-500/30">Change Password</Link>
-          </nav>
-        </div>
-        <button onClick={logout} className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-2 rounded-lg font-bold shadow-lg hover:shadow-xl hover:from-blue-500 hover:to-purple-500 transition-all duration-200">🚪 Logout</button>
-      </div>
+    <div style={{ minHeight: "100vh", background: "linear-gradient(135deg,#0f172a 0%,#1e1b4b 50%,#0f172a 100%)" }}>
+      <Navbar />
 
-      <main className="flex-1 p-8 ml-64">
-        <div className="w-full max-w-4xl mx-auto bg-gradient-to-br from-slate-800/80 to-slate-900/80 backdrop-blur-xl rounded-2xl shadow-2xl p-8 text-center mb-8 border border-purple-500/20">
-          <h2 className="text-4xl font-black bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">Welcome, {username}</h2>
+      {alert && (
+        <div style={{
+          position: "fixed",
+          top: "80px",
+          left: "50%",
+          transform: "translateX(-50%)",
+          background: alert.type === "success" ? "rgba(16,185,129,0.15)" : "rgba(239,68,68,0.12)",
+          border: `1px solid ${alert.type === "success" ? "#10b981" : "#ef4444"}`,
+          color: alert.type === "success" ? "#6ee7b7" : "#fca5a5",
+          padding: "12px 28px",
+          borderRadius: "10px",
+          fontWeight: "600",
+          fontSize: "14px",
+          zIndex: 300,
+          backdropFilter: "blur(12px)",
+          whiteSpace: "nowrap",
+        }}>
+          {alert.msg}
         </div>
+      )}
 
-        <div className="flex justify-center mb-8">
-          <form onSubmit={submit} className="flex flex-col gap-6 w-full max-w-6xl bg-gradient-to-br from-slate-800/80 to-slate-900/80 backdrop-blur-xl rounded-2xl shadow-2xl p-8 border border-purple-500/20">
-            <div className="flex gap-3">
+      <div style={{ maxWidth: "1200px", margin: "0 auto", padding: "32px 24px" }}>
+        <h1 style={{
+          fontSize: "26px",
+          fontWeight: "900",
+          background: "linear-gradient(90deg,#60a5fa,#a855f7,#ec4899)",
+          WebkitBackgroundClip: "text",
+          WebkitTextFillColor: "transparent",
+          marginBottom: "24px",
+        }}>
+          Search Products
+        </h1>
+
+        {/* Search form */}
+        <div style={{
+          background: "rgba(30,27,75,0.6)",
+          border: "1px solid rgba(139,92,246,0.2)",
+          borderRadius: "16px",
+          padding: "24px",
+          marginBottom: "28px",
+        }}>
+          <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+            <div style={{ display: "flex", gap: "10px" }}>
               <input
+                style={{ ...inputStyle, flex: 1 }}
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search for products..."
-                className="flex-1 py-2 px-4 bg-slate-700/50 border border-purple-500/30 rounded-lg text-slate-100 placeholder-slate-400 shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all duration-200"
+                placeholder="Search for products, categories..."
               />
-              <button type="submit" className="bg-gradient-to-r from-blue-600 to-purple-600 text-white py-2 px-6 rounded-lg shadow-md hover:shadow-lg hover:from-blue-500 hover:to-purple-500 transition-all font-semibold">🔍 Search</button>
+              <button
+                type="submit"
+                disabled={loading}
+                style={{
+                  padding: "10px 24px",
+                  background: loading ? "#374151" : "linear-gradient(135deg,#7c3aed,#a855f7)",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: "10px",
+                  fontWeight: "700",
+                  fontSize: "14px",
+                  cursor: loading ? "not-allowed" : "pointer",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {loading ? "Searching..." : "Search"}
+              </button>
             </div>
 
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(160px,1fr))", gap: "12px" }}>
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">Min Price</label>
-                <input type="number" value={minPrice} onChange={(e) => setMinPrice(e.target.value)} placeholder="Min Price" className="w-full py-2 px-4 bg-slate-700/50 border border-purple-500/30 rounded-lg text-slate-100 placeholder-slate-400 shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all duration-200" />
+                <label style={{ display: "block", fontSize: "11px", fontWeight: "700", color: "#64748b", textTransform: "uppercase", marginBottom: "4px" }}>Min Price</label>
+                <input style={inputStyle} type="number" value={minPrice} onChange={(e) => setMinPrice(e.target.value)} placeholder="0" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">Max Price</label>
-                <input type="number" value={maxPrice} onChange={(e) => setMaxPrice(e.target.value)} placeholder="Max Price" className="w-full py-2 px-4 bg-slate-700/50 border border-purple-500/30 rounded-lg text-slate-100 placeholder-slate-400 shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all duration-200" />
+                <label style={{ display: "block", fontSize: "11px", fontWeight: "700", color: "#64748b", textTransform: "uppercase", marginBottom: "4px" }}>Max Price</label>
+                <input style={inputStyle} type="number" value={maxPrice} onChange={(e) => setMaxPrice(e.target.value)} placeholder="Any" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">Category</label>
-                <input type="text" value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Category" className="w-full py-2 px-4 bg-slate-700/50 border border-purple-500/30 rounded-lg text-slate-100 placeholder-slate-400 shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all duration-200" />
+                <label style={{ display: "block", fontSize: "11px", fontWeight: "700", color: "#64748b", textTransform: "uppercase", marginBottom: "4px" }}>Category</label>
+                <input style={inputStyle} type="text" value={category} onChange={(e) => setCategory(e.target.value)} placeholder="e.g. Electronics" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">Sort By</label>
-                <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="w-full py-2 px-4 bg-slate-700/50 border border-purple-500/30 rounded-lg text-slate-100 shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all duration-200">
-                  <option value="" className="bg-slate-800 text-slate-100">Sort By</option>
-                  <option value="Price" className="bg-slate-800 text-slate-100">Price</option>
-                  <option value="Title" className="bg-slate-800 text-slate-100">Title</option>
+                <label style={{ display: "block", fontSize: "11px", fontWeight: "700", color: "#64748b", textTransform: "uppercase", marginBottom: "4px" }}>Sort By</label>
+                <select style={inputStyle} value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
+                  <option value="">Default</option>
+                  <option value="Price">Price</option>
+                  <option value="Title">Name</option>
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">Order</label>
-                <select value={sortOrder} onChange={(e) => setSortOrder(e.target.value)} className="w-full py-2 px-4 bg-slate-700/50 border border-purple-500/30 rounded-lg text-slate-100 shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all duration-200">
-                  <option value="asc" className="bg-slate-800 text-slate-100">Ascending</option>
-                  <option value="desc" className="bg-slate-800 text-slate-100">Descending</option>
+                <label style={{ display: "block", fontSize: "11px", fontWeight: "700", color: "#64748b", textTransform: "uppercase", marginBottom: "4px" }}>Order</label>
+                <select style={inputStyle} value={sortOrder} onChange={(e) => setSortOrder(e.target.value)}>
+                  <option value="asc">Ascending</option>
+                  <option value="desc">Descending</option>
                 </select>
               </div>
             </div>
           </form>
         </div>
 
-        <div className="mt-10">
-          {result.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-              {result.map((product) => (
-                <div key={product._id} className="bg-gradient-to-b from-slate-800/80 to-slate-900/80 backdrop-blur-xl border border-purple-500/20 p-4 rounded-xl shadow-lg hover:shadow-2xl transition-all duration-300 hover:scale-105 hover:border-purple-500/40 flex flex-col">
-                  <Link to={`/product_page/${product._id}`} className="block">
-                    <img src={product.Image} alt={product.Name} className="w-full h-48 object-cover mb-4 rounded-lg" />
-                  </Link>
-                  <h3 className="text-lg font-bold text-slate-100 line-clamp-2 mb-2">{product.Title}</h3>
-                  <p className="bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent font-bold text-lg mb-2">₹{product.Price}</p>
-                  <p className="text-slate-300 text-sm mb-4 flex-grow line-clamp-2">{product.Description}</p>
-                  <button onClick={() => addToCart(product._id)} className="mt-auto w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-2 px-4 rounded-lg shadow-md hover:shadow-lg hover:from-blue-500 hover:to-purple-500 transition-all font-semibold">Add to Cart</button>
-                </div>
-              ))}
-            </div>
+        {/* Results */}
+        {searched && (
+          result.length > 0 ? (
+            <>
+              <p style={{ color: "#64748b", fontSize: "13px", marginBottom: "16px" }}>{result.length} product(s) found</p>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(220px,1fr))", gap: "18px" }}>
+                {result.map((product) => (
+                  <div
+                    key={product._id}
+                    style={{
+                      background: "rgba(30,27,75,0.6)",
+                      border: "1px solid rgba(139,92,246,0.2)",
+                      borderRadius: "14px",
+                      overflow: "hidden",
+                      display: "flex",
+                      flexDirection: "column",
+                      transition: "transform 0.2s,box-shadow 0.2s",
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-3px)"; e.currentTarget.style.boxShadow = "0 16px 32px rgba(139,92,246,0.2)"; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "none"; }}
+                  >
+                    <Link to={`/product_page/${product._id}`} style={{ display: "block" }}>
+                      <img src={product.Thumbnail} alt={product.Title} style={{ width: "100%", height: "180px", objectFit: "cover" }} />
+                    </Link>
+                    <div style={{ padding: "14px", flex: 1, display: "flex", flexDirection: "column" }}>
+                      <Link to={`/product_page/${product._id}`} style={{ textDecoration: "none" }}>
+                        <h3 style={{ color: "#e2e8f0", fontWeight: "700", fontSize: "14px", marginBottom: "6px", lineHeight: "1.3" }}>{product.Title}</h3>
+                      </Link>
+                      <p style={{ color: "#c084fc", fontWeight: "800", fontSize: "18px", marginBottom: "6px" }}>Rs.{product.Price}</p>
+                      <p style={{ color: "#64748b", fontSize: "11px", marginBottom: "12px" }}>{product.Category}</p>
+                      <div style={{ marginTop: "auto", display: "flex", gap: "6px" }}>
+                        <button
+                          onClick={() => navigate(`/bill?directBuy=${product._id}`)}
+                          style={{ flex: 1, padding: "8px 0", background: "linear-gradient(135deg,#f59e0b,#d97706)", color: "#fff", border: "none", borderRadius: "8px", fontWeight: "700", fontSize: "11px", cursor: "pointer" }}
+                        >
+                          Buy Now
+                        </button>
+                        <button
+                          onClick={() => addToCart(product._id)}
+                          style={{ flex: 1, padding: "8px 0", background: "linear-gradient(135deg,#7c3aed,#a855f7)", color: "#fff", border: "none", borderRadius: "8px", fontWeight: "700", fontSize: "11px", cursor: "pointer" }}
+                        >
+                          Add to Cart
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
           ) : (
-            <p className="text-slate-400 text-lg text-center mt-6">No products found</p>
-          )}
-        </div>
-      </main>
+            <div style={{ textAlign: "center", padding: "60px", color: "#64748b" }}>
+              No products found for your search.
+            </div>
+          )
+        )}
+      </div>
     </div>
   );
 }
-
 
 export default Search;

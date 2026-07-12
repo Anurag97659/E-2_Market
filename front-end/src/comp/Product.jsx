@@ -1,6 +1,7 @@
-import React,{useState} from"react";
-import{Link} from"react-router-dom";
-import{motion} from"framer-motion";
+import React, { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
+import Navbar from "./Navbar";
 
 function Product() {
   const [title, setTitle] = useState("");
@@ -8,159 +9,266 @@ function Product() {
   const [price, setPrice] = useState("");
   const [category, setCategory] = useState("");
   const [quantity, setQuantity] = useState("");
-  const [image, setImage] = useState(null);
+  const [thumbnail, setThumbnail] = useState(null);
+  const [thumbnailPreview, setThumbnailPreview] = useState(null);
+  const [galleryImages, setGalleryImages] = useState([]);
+  const [galleryPreviews, setGalleryPreviews] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [alert, setAlert] = useState(null);
+  const navigate = useNavigate();
+
+  const showAlert = (msg, type = "error") => {
+    setAlert({ msg, type });
+    setTimeout(() => setAlert(null), 4000);
+  };
+
+  const handleThumbnail = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setThumbnail(file);
+    setThumbnailPreview(URL.createObjectURL(file));
+  };
+
+  const handleGallery = (e) => {
+    const files = Array.from(e.target.files).slice(0, 5);
+    setGalleryImages(files);
+    setGalleryPreviews(files.map((f) => URL.createObjectURL(f)));
+  };
+
+  const removeGalleryImage = (idx) => {
+    setGalleryImages((prev) => prev.filter((_, i) => i !== idx));
+    setGalleryPreviews((prev) => prev.filter((_, i) => i !== idx));
+  };
 
   const submit = async (e) => {
     e.preventDefault();
-    console.log(title, description, price, category, quantity, image);
+    if (!thumbnail) { showAlert("Thumbnail image is required"); return; }
 
+    setLoading(true);
     const formData = new FormData();
     formData.append("Title", title);
     formData.append("Description", description);
     formData.append("Price", price);
     formData.append("Category", category);
     formData.append("Quantity", quantity);
-    if (image) {
-      formData.append("Image", image);
-    }
+    formData.append("Thumbnail", thumbnail);
+    galleryImages.forEach((img) => formData.append("Images", img));
 
     try {
-      const response = await fetch(
-        "http://localhost:8000/e-2market/v1/products/registerProduct",
-        {
-          method: "POST",
-          credentials: "include",
-          body: formData,
-        }
-      );
-
-      const data = await response.json();
-
-      if (data.error) {
-        alert(data.error);
-      } else {
-        alert("Product registered successfully!");
-        window.location.href = "/dash";
+      const res = await fetch("http://localhost:8000/e-2market/v1/products/registerProduct", {
+        method: "POST",
+        credentials: "include",
+        body: formData,
+      });
+      const data = await res.json();
+      if (!res.ok) showAlert(data.message || "Product registration failed");
+      else {
+        showAlert("Product added successfully!", "success");
+        setTimeout(() => navigate("/seller?tab=products"), 1200);
       }
-    } catch (error) {
-      alert("Error registering product. Please try again.");
-      console.error(error);
-    }
+    } catch { showAlert("Network error"); }
+    setLoading(false);
+  };
+
+  const inputStyle = {
+    width: "100%",
+    padding: "11px 14px",
+    background: "rgba(51,65,85,0.5)",
+    border: "1px solid rgba(100,116,139,0.5)",
+    borderRadius: "10px",
+    color: "#fff",
+    fontSize: "14px",
+    outline: "none",
+    boxSizing: "border-box",
+  };
+
+  const labelStyle = {
+    display: "block",
+    fontSize: "11px",
+    fontWeight: "700",
+    color: "#94a3b8",
+    textTransform: "uppercase",
+    letterSpacing: "1px",
+    marginBottom: "6px",
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-800 via-purple-700 to-gray-800 flex items-center justify-center px-4 py-4 relative overflow-hidden font-sans">
-      <div className="absolute inset-0 bg-grid-white/10 bg-[size:20px_20px]"></div>
-      <div className="absolute top-0 left-1/4 w-96 h-96 bg-purple-600/20 rounded-full blur-3xl"></div>
-      <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-blue-600/20 rounded-full blur-3xl"></div>
+    <div style={{ minHeight: "100vh", background: "linear-gradient(135deg,#0f172a 0%,#1e1b4b 50%,#0f172a 100%)" }}>
+      <Navbar />
 
-      <motion.div
-        initial={{y: 20, opacity: 0}}
-        animate={{y: 0, opacity: 1}}
-        transition={{duration: 0.6, ease: "easeOut"}}
-        className="w-full max-w-md bg-gradient-to-br from-gray-900/80 to-gray-900/80 backdrop-blur-2xl rounded-3xl shadow-2xl p-8 border border-purple-600/20 relative z-10"
-      >
-        <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-purple-500/10 to-blue-500/10 pointer-events-none"></div>
+      {alert && (
+        <div style={{
+          position: "fixed",
+          top: "80px",
+          left: "50%",
+          transform: "translateX(-50%)",
+          background: alert.type === "success" ? "rgba(16,185,129,0.15)" : "rgba(239,68,68,0.12)",
+          border: `1px solid ${alert.type === "success" ? "#10b981" : "#ef4444"}`,
+          color: alert.type === "success" ? "#6ee7b7" : "#fca5a5",
+          padding: "12px 28px",
+          borderRadius: "10px",
+          fontWeight: "600",
+          fontSize: "14px",
+          zIndex: 300,
+          backdropFilter: "blur(12px)",
+          whiteSpace: "nowrap",
+        }}>
+          {alert.msg}
+        </div>
+      )}
 
-        <div className="relative z-20">
-          <h2 className="text-3xl font-bold bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 bg-clip-text text-transparent mb-2 text-center font-mono">
-            Product Registration
+      <div style={{ maxWidth: "700px", margin: "0 auto", padding: "32px 24px" }}>
+        <motion.div
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ duration: 0.5 }}
+          style={{
+            background: "rgba(30,27,75,0.7)",
+            backdropFilter: "blur(20px)",
+            borderRadius: "20px",
+            border: "1px solid rgba(139,92,246,0.25)",
+            padding: "36px",
+          }}
+        >
+          <h2 style={{
+            textAlign: "center",
+            fontSize: "26px",
+            fontWeight: "900",
+            background: "linear-gradient(90deg,#60a5fa,#a855f7,#ec4899)",
+            WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent",
+            marginBottom: "28px",
+          }}>
+            Add New Product
           </h2>
 
-          <form onSubmit={submit} className="space-y-4">
+          <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
             <div>
-              <label className="block text-sm font-bold text-gray-300">
-                Product Title
-              </label>
-              <input
-                type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-400 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 transition duration-200 bg-gray-800 text-white font-sans"
-                required
-              />
+              <label style={labelStyle}>Product Title</label>
+              <input style={inputStyle} type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Enter product title" required />
             </div>
 
             <div>
-              <label className="block text-sm font-bold text-gray-300">
-                Description
-              </label>
+              <label style={labelStyle}>Description</label>
               <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-400 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 transition duration-200 bg-gray-800 text-white font-sans"
+                placeholder="Detailed product description..."
+                rows={4}
                 required
+                style={{ ...inputStyle, resize: "vertical" }}
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-bold text-gray-300">
-                Price (in INR)
-              </label>
-              <input
-                type="number"
-                value={price}
-                onChange={(e) => setPrice(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-400 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 transition duration-200 bg-gray-800 text-white font-sans"
-                required
-              />
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "12px" }}>
+              <div>
+                <label style={labelStyle}>Price (Rs.)</label>
+                <input style={inputStyle} type="number" min="1" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="0" required />
+              </div>
+              <div>
+                <label style={labelStyle}>Quantity</label>
+                <input style={inputStyle} type="number" min="1" value={quantity} onChange={(e) => setQuantity(e.target.value)} placeholder="0" required />
+              </div>
+              <div>
+                <label style={labelStyle}>Category</label>
+                <input style={inputStyle} type="text" value={category} onChange={(e) => setCategory(e.target.value)} placeholder="e.g. Electronics" required />
+              </div>
             </div>
 
+            {/* Thumbnail */}
             <div>
-              <label className="block text-sm font-bold text-gray-300">
-                Category
-              </label>
-              <input
-                type="text"
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-400 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 transition duration-200 bg-gray-800 text-white font-sans"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-bold text-gray-300">
-                Quantity
-              </label>
-              <input
-                type="number"
-                value={quantity}
-                onChange={(e) => setQuantity(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-400 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 transition duration-200 bg-gray-800 text-white font-sans"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-bold text-gray-300">
-                Product Image
-              </label>
+              <label style={labelStyle}>Thumbnail Image (required)</label>
               <input
                 type="file"
                 accept="image/*"
-                onChange={(e) => setImage(e.target.files[0])}
-                className="w-full px-4 py-2 border border-gray-400 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 transition duration-200 font-sans"
+                onChange={handleThumbnail}
+                style={{ ...inputStyle, color: "#94a3b8" }}
               />
+              {thumbnailPreview && (
+                <div style={{ marginTop: "10px" }}>
+                  <img
+                    src={thumbnailPreview}
+                    alt="thumbnail preview"
+                    style={{ width: "120px", height: "120px", objectFit: "cover", borderRadius: "10px", border: "2px solid rgba(139,92,246,0.4)" }}
+                  />
+                </div>
+              )}
             </div>
 
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
+            {/* Gallery images */}
+            <div>
+              <label style={labelStyle}>Gallery Images (up to 5, optional)</label>
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={handleGallery}
+                style={{ ...inputStyle, color: "#94a3b8" }}
+              />
+              {galleryPreviews.length > 0 && (
+                <div style={{ display: "flex", gap: "8px", marginTop: "10px", flexWrap: "wrap" }}>
+                  {galleryPreviews.map((src, i) => (
+                    <div key={i} style={{ position: "relative" }}>
+                      <img
+                        src={src}
+                        alt={`gallery-${i}`}
+                        style={{ width: "80px", height: "80px", objectFit: "cover", borderRadius: "8px", border: "1px solid rgba(139,92,246,0.3)" }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeGalleryImage(i)}
+                        style={{
+                          position: "absolute",
+                          top: "-6px",
+                          right: "-6px",
+                          width: "20px",
+                          height: "20px",
+                          borderRadius: "50%",
+                          background: "#dc2626",
+                          border: "none",
+                          color: "#fff",
+                          fontSize: "12px",
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          lineHeight: 1,
+                        }}
+                      >
+                        x
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <button
               type="submit"
-              className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition duration-200 font-bold"
+              disabled={loading}
+              style={{
+                padding: "14px",
+                background: loading ? "#374151" : "linear-gradient(135deg,#6d28d9,#a855f7,#ec4899)",
+                color: "#fff",
+                border: "none",
+                borderRadius: "12px",
+                fontWeight: "700",
+                fontSize: "16px",
+                cursor: loading ? "not-allowed" : "pointer",
+                marginTop: "8px",
+              }}
             >
-              Register Product
-            </motion.button>
+              {loading ? "Uploading..." : "Add Product"}
+            </button>
           </form>
 
-          <p className="text-center text-sm text-gray-300 mt-4 font-bold">
-            <Link to="/dash" className="text-blue-500 hover:underline">
-              Back to Home
+          <p style={{ textAlign: "center", marginTop: "20px", fontSize: "13px", color: "#64748b" }}>
+            <Link to="/seller?tab=products" style={{ color: "#c084fc", fontWeight: "700", textDecoration: "none" }}>
+              Back to Your Products
             </Link>
           </p>
-        </div>
-      </motion.div>
+        </motion.div>
+      </div>
     </div>
   );
 }

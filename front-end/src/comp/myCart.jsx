@@ -1,161 +1,249 @@
-import React,{useEffect,useState} from "react";
-import{Link} from "react-router-dom";
+import React, { useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import Navbar from "./Navbar";
 
-function MyCart(){
-    const[username,setUsername]=useState("");
-    const[cartItems,setCartItems]=useState([]);
+function MyCart() {
+  const [cartItems, setCartItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [alert, setAlert] = useState(null);
+  const navigate = useNavigate();
 
-    useEffect(()=>{
-        fetch("http://localhost:8000/e-2market/v1/users/getUsername",{
-            method:"GET",
-            credentials:"include",
-        })
-            .then((res)=>{
-                if(res.status=== 401){
-                    alert("Session expired. Please login again.");
-                    window.location.href="/login";
-                }
-                return res.json();
-            })
-            .then((data)=>{
-                setUsername(String(data.data.username).toUpperCase());
-            })
-            .catch((error)=>{
-                console.error("Error fetching user details:", error);
-            });
-    }, []);
+  const showAlert = (msg, type = "error") => {
+    setAlert({ msg, type });
+    setTimeout(() => setAlert(null), 4000);
+  };
 
-    useEffect(()=>{
-        fetch("http://localhost:8000/e-2market/v1/users/getusercartlist",{
-            method:"GET",
-            credentials:"include",
-        })
-            .then((res)=>res.json())
-            .then((data)=>{
-                console.log("data = ",data);
-                setCartItems(data?.data||[]);
-            })
-            .catch((error)=>{
-                console.error("Error fetching cart items:", error);
-            });
-    }, []);
+  useEffect(() => {
+    fetch("http://localhost:8000/e-2market/v1/users/getusercartlist", {
+      credentials: "include",
+    })
+      .then((r) => {
+        if (r.status === 401) { navigate("/login"); return; }
+        return r.json();
+      })
+      .then((d) => {
+        setCartItems(d?.data || []);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, []);
 
-    const removeFromCart=(productId)=>{
-        fetch("http://localhost:8000/e-2market/v1/products/removeFromCart",{
-            method:"POST",
-            credentials:"include",
-            headers:{ "Content-Type":"application/json" },
-            body:JSON.stringify({ productId }),
-        })
-            .then((res)=>res.json())
-            .then((data)=>{
-                alert(data.message || "Item removed from cart!");
-                setCartItems(cartItems.filter((item)=>item._id !== productId));
-            })
-            .catch((error)=>{
-                console.error("Error removing item from cart:", error);
-            });
-    };
+  const updateQuantity = async (productId, newQty) => {
+    if (newQty < 1) { removeFromCart(productId); return; }
+    try {
+      const res = await fetch("http://localhost:8000/e-2market/v1/products/addToCart", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ productId, quantity: newQty }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setCartItems((prev) =>
+          prev.map((item) =>
+            (item.product?._id || item.product) === productId
+              ? { ...item, quantity: newQty }
+              : item
+          )
+        );
+      } else showAlert(data.message || "Failed to update quantity");
+    } catch { showAlert("Network error"); }
+  };
 
-    const logout=()=>{
-        fetch("http://localhost:8000/e-2market/v1/users/logout",{
-            method:"POST",
-            credentials:"include",
-        })
-            .then((res)=>{
-                if(res.status=== 200){
-                    alert("Logged out successfully");
-                    window.location.href="/login";
-                } else{
-                    alert("Logout failed. Please try again.");
-                }
-            })
-            .catch((error)=>{
-                console.error("Error logging out:", error);
-            });
-    };
+  const removeFromCart = async (productId) => {
+    try {
+      const res = await fetch("http://localhost:8000/e-2market/v1/products/removeFromCart", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ productId }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setCartItems((prev) => prev.filter((item) => (item.product?._id || item.product) !== productId));
+        showAlert("Item removed", "success");
+      } else showAlert(data.message || "Failed to remove");
+    } catch { showAlert("Network error"); }
+  };
 
-    const totalAmount = cartItems.reduce((acc, item)=>acc + item.Price, 0);
+  const totalAmount = cartItems.reduce((acc, item) => {
+    const price = item.product?.Price || 0;
+    return acc + price * (item.quantity || 1);
+  }, 0);
 
-    return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex">
-            <div className="w-64 h-screen fixed bg-gradient-to-b from-slate-800/80 to-slate-900/80 backdrop-blur-xl shadow-2xl p-6 flex flex-col justify-between border-r border-purple-500/20">
-                <div>
-                    <h2 className="text-2xl font-black bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent mb-8 text-center">My Cart</h2>
-                    <nav className="space-y-2">
-                        <Link to="/profile" className="block text-white font-medium py-3 px-4 rounded-lg hover:bg-purple-500/20 hover:text-purple-300 transition-all duration-200 border border-transparent hover:border-purple-500/30">Profile</Link>
-                        <Link to="/dash" className="block text-white font-medium py-3 px-4 rounded-lg hover:bg-purple-500/20 hover:text-purple-300 transition-all duration-200 border border-transparent hover:border-purple-500/30">Dashboard</Link>
-                        <Link to="/search" className="block text-white font-medium py-3 px-4 rounded-lg hover:bg-purple-500/20 hover:text-purple-300 transition-all duration-200 border border-transparent hover:border-purple-500/30">Search</Link>
-                        <Link to="/orders" className="block text-white font-medium py-3 px-4 rounded-lg hover:bg-purple-500/20 hover:text-purple-300 transition-all duration-200 border border-transparent hover:border-purple-500/30">Orders</Link>
-                        <Link to="/Change-details" className="block text-white font-medium py-3 px-4 rounded-lg hover:bg-purple-500/20 hover:text-purple-300 transition-all duration-200 border border-transparent hover:border-purple-500/30">Change Details</Link>
-                        <Link to="/Change-password" className="block text-white font-medium py-3 px-4 rounded-lg hover:bg-purple-500/20 hover:text-purple-300 transition-all duration-200 border border-transparent hover:border-purple-500/30">Change Password</Link>
-                    </nav>
-                </div>
-                <div className="space-y-3">
-                    <button onClick={logout} className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-2 rounded-lg font-bold shadow-lg hover:shadow-xl hover:from-blue-500 hover:to-purple-500 transition-all duration-200">Logout</button>
-                </div>
-            </div>
+  return (
+    <div style={{ minHeight: "100vh", background: "linear-gradient(135deg,#0f172a 0%,#1e1b4b 50%,#0f172a 100%)" }}>
+      <Navbar />
 
-            <div className="flex-1 p-8 ml-64">
-                <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent mb-2">Shopping Cart</h1>
-                <p className="text-white mb-6">Welcome, {username}</p>
-
-                <div className="grid grid-cols-3 gap-6">
-                    <div className="col-span-2">
-                        {cartItems.length > 0 ? (
-                            <div className="bg-slate-700/40 rounded-lg shadow-lg p-4">
-                                {cartItems.map((product, index) => (
-                                    <div key={product._id} className={`border-b p-4 flex gap-4 ${index === cartItems.length - 1 ? 'border-b-0' : ''}`}>
-                                        <img src={product.Image} alt={product.Name} className="w-32 h-32 object-cover rounded" />
-                                        <div className="flex-1">
-                                            <h3 className="text-lg font-semibold text-white">{product.Title}</h3>
-                                            <p className="text-white text-sm mt-1">Price: <span className="text-lg font-bold text-slate-200">₹{product.Price}</span></p>
-                                            <button
-                                                onClick={() => removeFromCart(product._id)}
-                                                className="mt-3 bg-gradient-to-r from-red-600 to-red-800 text-white px-3 py-1 rounded hover:bg-red-700 transition font-medium text-sm"
-                                            >
-                                                Delete
-                                            </button>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        ) : (
-                            <div className="bg-slate-700/40 rounded-lg shadow-lg p-8 text-center">
-                                <p className="text-white text-lg">Your cart is empty</p>
-                            </div>
-                        )}
-                    </div>
-
-                    <div className="col-span-1">
-                        <div className="bg-slate-700/40 rounded-lg shadow-lg p-4 sticky top-6">
-                            <div className="border-b pb-4 mb-4">
-                                <div className="flex justify-between mb-2">
-                                    <span className="text-white">Subtotal:</span>
-                                    <span className="text-white font-semibold">₹{totalAmount}</span>
-                                </div>
-                                <div className="flex justify-between mb-2">
-                                    <span className="text-white">Shipping:</span>
-                                    <span className="text-green-400 font-semibold">FREE</span>
-                                </div>
-                                <div className="flex justify-between">
-                                    <span className="text-white">Tax:</span>
-                                    <span className="text-white font-semibold">₹0</span>
-                                </div>
-                            </div>
-                            <div className="flex justify-between mb-6 text-lg font-bold">
-                                <span className="text-white">Total ({cartItems.length} items):</span>
-                                <span className="text-white">₹{totalAmount}</span>
-                            </div>
-                            <Link to="/bill" className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-2 px-4 rounded font-bold hover:bg-gradient-to-l transition text-center block">
-                                Proceed to Buy
-                            </Link>
-                        </div>
-                    </div>
-                </div>
-            </div>
+      {alert && (
+        <div style={{
+          position: "fixed",
+          top: "80px",
+          left: "50%",
+          transform: "translateX(-50%)",
+          background: alert.type === "success" ? "rgba(16,185,129,0.15)" : "rgba(239,68,68,0.12)",
+          border: `1px solid ${alert.type === "success" ? "#10b981" : "#ef4444"}`,
+          color: alert.type === "success" ? "#6ee7b7" : "#fca5a5",
+          padding: "12px 28px",
+          borderRadius: "10px",
+          fontWeight: "600",
+          fontSize: "14px",
+          zIndex: 300,
+          backdropFilter: "blur(12px)",
+          whiteSpace: "nowrap",
+        }}>
+          {alert.msg}
         </div>
-    );
+      )}
+
+      <div style={{ maxWidth: "1100px", margin: "0 auto", padding: "32px 24px" }}>
+        <h1 style={{
+          fontSize: "28px",
+          fontWeight: "900",
+          background: "linear-gradient(90deg,#60a5fa,#a855f7,#ec4899)",
+          WebkitBackgroundClip: "text",
+          WebkitTextFillColor: "transparent",
+          marginBottom: "28px",
+        }}>
+          Shopping Cart
+        </h1>
+
+        {loading ? (
+          <div style={{ textAlign: "center", padding: "60px", color: "#64748b" }}>Loading cart...</div>
+        ) : (
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: "24px" }}>
+            <div>
+              {cartItems.length === 0 ? (
+                <div style={{
+                  background: "rgba(30,27,75,0.6)",
+                  border: "1px solid rgba(139,92,246,0.2)",
+                  borderRadius: "16px",
+                  padding: "60px",
+                  textAlign: "center",
+                }}>
+                  <p style={{ color: "#64748b", fontSize: "16px", marginBottom: "16px" }}>Your cart is empty.</p>
+                  <Link to="/" style={{ color: "#c084fc", fontWeight: "700", textDecoration: "none" }}>Browse Products</Link>
+                </div>
+              ) : (
+                <div style={{
+                  background: "rgba(30,27,75,0.6)",
+                  border: "1px solid rgba(139,92,246,0.2)",
+                  borderRadius: "16px",
+                  overflow: "hidden",
+                }}>
+                  {cartItems.map((item, i) => {
+                    const product = item.product || {};
+                    const productId = product._id || item.product;
+                    const qty = item.quantity || 1;
+                    const price = product.Price || 0;
+                    return (
+                      <div
+                        key={productId}
+                        style={{
+                          display: "flex",
+                          gap: "16px",
+                          padding: "20px",
+                          borderBottom: i < cartItems.length - 1 ? "1px solid rgba(139,92,246,0.1)" : "none",
+                        }}
+                      >
+                        <Link to={`/product_page/${productId}`} style={{ display: "block", flexShrink: 0 }}>
+                          <img
+                            src={product.Thumbnail}
+                            alt={product.Title}
+                            style={{ width: "96px", height: "96px", objectFit: "cover", borderRadius: "10px" }}
+                          />
+                        </Link>
+                        <div style={{ flex: 1 }}>
+                          <Link to={`/product_page/${productId}`} style={{ textDecoration: "none" }}>
+                            <h3 style={{ color: "#e2e8f0", fontWeight: "700", fontSize: "15px", marginBottom: "4px" }}>
+                              {product.Title}
+                            </h3>
+                          </Link>
+                          <p style={{ color: "#64748b", fontSize: "12px", marginBottom: "8px" }}>{product.Category}</p>
+                          <p style={{ color: "#c084fc", fontWeight: "800", fontSize: "17px", marginBottom: "12px" }}>
+                            Rs.{price.toLocaleString()}
+                          </p>
+                          {/* Quantity controls */}
+                          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                            <div style={{ display: "flex", alignItems: "center", background: "rgba(51,65,85,0.5)", borderRadius: "8px", border: "1px solid rgba(139,92,246,0.3)", overflow: "hidden" }}>
+                              <button onClick={() => updateQuantity(productId, qty - 1)} style={{ width: "32px", height: "32px", background: "none", border: "none", color: "#e2e8f0", fontSize: "16px", cursor: "pointer", fontWeight: "700" }}>-</button>
+                              <span style={{ minWidth: "36px", textAlign: "center", color: "#fff", fontWeight: "700", fontSize: "14px" }}>{qty}</span>
+                              <button onClick={() => updateQuantity(productId, qty + 1)} style={{ width: "32px", height: "32px", background: "none", border: "none", color: "#e2e8f0", fontSize: "16px", cursor: "pointer", fontWeight: "700" }}>+</button>
+                            </div>
+                            <button
+                              onClick={() => removeFromCart(productId)}
+                              style={{ padding: "6px 14px", background: "rgba(220,38,38,0.12)", border: "1px solid rgba(220,38,38,0.3)", color: "#fca5a5", borderRadius: "8px", cursor: "pointer", fontSize: "12px", fontWeight: "700" }}
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        </div>
+                        <div style={{ textAlign: "right" }}>
+                          <p style={{ color: "#c084fc", fontWeight: "800", fontSize: "17px" }}>
+                            Rs.{(price * qty).toLocaleString()}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Summary */}
+            <div>
+              <div style={{
+                background: "rgba(30,27,75,0.6)",
+                border: "1px solid rgba(139,92,246,0.2)",
+                borderRadius: "16px",
+                padding: "24px",
+                position: "sticky",
+                top: "80px",
+              }}>
+                <h3 style={{ color: "#e2e8f0", fontWeight: "700", fontSize: "16px", marginBottom: "20px" }}>
+                  Order Summary
+                </h3>
+                <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "20px", paddingBottom: "20px", borderBottom: "1px solid rgba(139,92,246,0.15)" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between" }}>
+                    <span style={{ color: "#94a3b8", fontSize: "14px" }}>Subtotal ({cartItems.length} items)</span>
+                    <span style={{ color: "#e2e8f0", fontWeight: "600" }}>Rs.{totalAmount.toLocaleString()}</span>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between" }}>
+                    <span style={{ color: "#94a3b8", fontSize: "14px" }}>Shipping</span>
+                    <span style={{ color: "#10b981", fontWeight: "600" }}>Free</span>
+                  </div>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "20px" }}>
+                  <span style={{ color: "#e2e8f0", fontWeight: "700", fontSize: "16px" }}>Total</span>
+                  <span style={{ color: "#c084fc", fontWeight: "900", fontSize: "22px" }}>Rs.{totalAmount.toLocaleString()}</span>
+                </div>
+                <Link
+                  to="/bill"
+                  style={{
+                    display: "block",
+                    padding: "14px",
+                    background: cartItems.length === 0 ? "#374151" : "linear-gradient(135deg,#6d28d9,#a855f7,#ec4899)",
+                    color: "#fff",
+                    borderRadius: "12px",
+                    textDecoration: "none",
+                    textAlign: "center",
+                    fontWeight: "700",
+                    fontSize: "15px",
+                    pointerEvents: cartItems.length === 0 ? "none" : "auto",
+                  }}
+                >
+                  Proceed to Checkout
+                </Link>
+                <Link to="/" style={{ display: "block", textAlign: "center", marginTop: "12px", color: "#64748b", fontSize: "13px", textDecoration: "none" }}>
+                  Continue Shopping
+                </Link>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
 
 export default MyCart;

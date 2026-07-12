@@ -1,99 +1,120 @@
-import React,{useEffect,useState} from"react";
-import{Link} from"react-router-dom";
+import React, { useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import Navbar from "./Navbar";
 
-function Profile(){
-    const[username,setUsername]=useState("");
-    const[email,setEmail]=useState("");
-    const[phone,setPhone]=useState("");
-    const[fullname,setFullname]=useState("");
-    const[address,setAddress]=useState("");
+function Profile() {
+  const [user, setUser] = useState(null);
+  const navigate = useNavigate();
 
-    useEffect(()=>{
-        fetch("http://localhost:8000/e-2market/v1/users/getProfile",{
-            method:"GET",
-            credentials:"include",
-        })
-            .then((res)=>{
-                if (res.status === 401){
-                    alert("Session expired. Please login again.");
-                    window.location.href ="/login";
-                }
-                return res.json();
-            })
-            .then((data)=>{
-                setUsername(String(data.data.username).toUpperCase());
-                setEmail(String(data.data.email));
-                setPhone(String(data.data.phone));
-                setFullname(String(data.data.fullname));
-                setAddress(String(data.data.address));
-                
-            })
-            .catch((error)=>{
-                console.error("Error fetching user details:", error);
-            });
-    }, []);
-  
-    const logout=()=>{
-        fetch("http://localhost:8000/e-2market/v1/users/logout",{
-            method:"POST",
-            credentials:"include",
-        })
-            .then((res)=>{
-                if (res.status === 200){
-                    alert("Logged out successfully");
-                    window.location.href ="/login";
-                } else{
-                    alert("Logout failed. Please try again.");
-                }
-            })
-            .catch((error)=>{
-                console.error("Error logging out:", error);
-            });
-    };
+  useEffect(() => {
+    fetch("http://localhost:8000/e-2market/v1/users/getProfile", {
+      credentials: "include",
+    })
+      .then((res) => {
+        if (res.status === 401) { navigate("/login"); return; }
+        return res.json();
+      })
+      .then((data) => { if (data?.data) setUser(data.data); })
+      .catch(() => {});
+  }, []);
 
-    return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex">
-            
-            <div className="w-64 h-screen fixed bg-gradient-to-b from-slate-800/80 to-slate-900/80 backdrop-blur-xl shadow-2xl p-6 flex flex-col justify-between border-r border-purple-500/20">
-                <div>
-                    <h2 className="text-2xl font-black bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent mb-8 text-center">Profile</h2>
-                    <nav className="space-y-2">
-                        <Link to="/dash" className="block text-slate-300 font-medium py-3 px-4 rounded-lg hover:bg-purple-500/20 hover:text-purple-300 transition-all duration-200 border border-transparent hover:border-purple-500/30">Dashboard</Link>
-                        <Link to="/search" className="block text-slate-300 font-medium py-3 px-4 rounded-lg hover:bg-purple-500/20 hover:text-purple-300 transition-all duration-200 border border-transparent hover:border-purple-500/30">Search</Link>
-                        <Link to="/mycart" className="block text-slate-300 font-medium py-3 px-4 rounded-lg hover:bg-purple-500/20 hover:text-purple-300 transition-all duration-200 border border-transparent hover:border-purple-500/30">My Cart</Link>
-                        <Link to="/orders" className="block text-slate-300 font-medium py-3 px-4 rounded-lg hover:bg-purple-500/20 hover:text-purple-300 transition-all duration-200 border border-transparent hover:border-purple-500/30">Orders</Link>
-                        <Link to="/Change-details" className="block text-slate-300 font-medium py-3 px-4 rounded-lg hover:bg-purple-500/20 hover:text-purple-300 transition-all duration-200 border border-transparent hover:border-purple-500/30">Change Details</Link>
-                        <Link to="/Change-password" className="block text-slate-300 font-medium py-3 px-4 rounded-lg hover:bg-purple-500/20 hover:text-purple-300 transition-all duration-200 border border-transparent hover:border-purple-500/30">Change Password</Link>
-                    </nav>
-                </div>
-                <button onClick={logout} className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold py-3 rounded-lg shadow-lg hover:shadow-xl hover:from-blue-500 hover:to-purple-500 transition-all duration-200">Logout</button>
-            </div>
+  const fields = user
+    ? [
+        { label: "Full Name", value: user.fullname },
+        { label: "Username", value: user.username?.toUpperCase() },
+        { label: "Email", value: user.email },
+        { label: "Phone", value: user.phone },
+        { label: "Address", value: user.address },
+      ]
+    : [];
 
-            
-            <div className="ml-64 p-8 w-full">
-                <div className="w-full max-w-3xl mx-auto bg-gradient-to-br from-slate-800/80 to-slate-900/80 backdrop-blur-xl rounded-2xl shadow-2xl p-8 border border-purple-500/20">
-                    <h2 className="text-4xl font-black bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent mb-8 text-center">Profile Details</h2>
-                    <div className="space-y-6">
-                        <div className="pb-4 border-b border-purple-500/20">
-                            <p className="text-lg font-semibold text-slate-300"><span className="bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">Fullname</span>: <span className="text-slate-400">{fullname}</span></p>
-                        </div>
-                        <div className="pb-4 border-b border-purple-500/20">
-                            <p className="text-lg font-semibold text-slate-300"><span className="bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">Username</span>: <span className="text-slate-400">{username}</span></p>
-                        </div>
-                        <div className="pb-4 border-b border-purple-500/20">
-                            <p className="text-lg font-semibold text-slate-300"><span className="bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">Email</span>: <span className="text-slate-400">{email}</span></p>
-                        </div>
-                        <div className="pb-4 border-b border-purple-500/20">
-                            <p className="text-lg font-semibold text-slate-300"><span className="bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">Phone</span>: <span className="text-slate-400">{phone}</span></p>
-                        </div>
-                        <div>
-                            <p className="text-lg font-semibold text-slate-300"><span className="bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">Address</span>: <span className="text-slate-400">{address}</span></p>
-                        </div>
-                    </div>
-                </div>
-            </div>
+  return (
+    <div style={{ minHeight: "100vh", background: "linear-gradient(135deg,#0f172a 0%,#1e1b4b 50%,#0f172a 100%)" }}>
+      <Navbar />
+
+      <div style={{ maxWidth: "640px", margin: "40px auto", padding: "0 24px" }}>
+        <div style={{
+          background: "rgba(30,27,75,0.7)",
+          backdropFilter: "blur(20px)",
+          borderRadius: "20px",
+          border: "1px solid rgba(139,92,246,0.25)",
+          padding: "36px",
+        }}>
+          <h2 style={{
+            textAlign: "center",
+            fontSize: "26px",
+            fontWeight: "900",
+            background: "linear-gradient(90deg,#60a5fa,#a855f7,#ec4899)",
+            WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent",
+            marginBottom: "28px",
+          }}>
+            Your Profile
+          </h2>
+
+          {!user ? (
+            <p style={{ textAlign: "center", color: "#64748b" }}>Loading...</p>
+          ) : (
+            <>
+              {/* Avatar initials */}
+              <div style={{
+                width: "72px",
+                height: "72px",
+                borderRadius: "50%",
+                background: "linear-gradient(135deg,#7c3aed,#a855f7)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                margin: "0 auto 24px",
+                fontSize: "28px",
+                fontWeight: "900",
+                color: "#fff",
+              }}>
+                {user.fullname?.[0]?.toUpperCase()}
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: "0" }}>
+                {fields.map((field, i) => (
+                  <div
+                    key={field.label}
+                    style={{
+                      padding: "16px 0",
+                      borderBottom: i < fields.length - 1 ? "1px solid rgba(139,92,246,0.12)" : "none",
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                    }}
+                  >
+                    <span style={{ fontSize: "12px", fontWeight: "700", color: "#64748b", textTransform: "uppercase", letterSpacing: "1px" }}>
+                      {field.label}
+                    </span>
+                    <span style={{ fontSize: "15px", fontWeight: "600", color: "#e2e8f0" }}>
+                      {field.value}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ display: "flex", gap: "10px", marginTop: "28px" }}>
+                <Link to="/Change-details" style={{
+                  flex: 1, padding: "11px", background: "linear-gradient(135deg,#7c3aed,#a855f7)",
+                  color: "#fff", borderRadius: "10px", textDecoration: "none", textAlign: "center", fontWeight: "700", fontSize: "13px"
+                }}>
+                  Edit Details
+                </Link>
+                <Link to="/Change-password" style={{
+                  flex: 1, padding: "11px", border: "1px solid rgba(139,92,246,0.4)",
+                  color: "#c084fc", borderRadius: "10px", textDecoration: "none", textAlign: "center", fontWeight: "700", fontSize: "13px"
+                }}>
+                  Change Password
+                </Link>
+              </div>
+            </>
+          )}
         </div>
-    );
+      </div>
+    </div>
+  );
 }
 
 export default Profile;

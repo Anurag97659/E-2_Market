@@ -1,320 +1,411 @@
-import{asyncHandler}from '../utils/asyncHandler.js';
-import{ApiError}from '../utils/ApiError.js';
-import{ApiResponse}from '../utils/ApiResponse.js';
+import { asyncHandler } from "../utils/asyncHandler.js";
+import { ApiError } from "../utils/ApiError.js";
+import { ApiResponse } from "../utils/ApiResponse.js";
 import dotenv from "dotenv";
-import{uploadOnCloudinary}from '../utils/cloudinary.js';
-import{Product}from '../models/product.model.js';
-import{User}from '../models/user.model.js';
-dotenv.config({
-    path: "/.env"
+import { uploadOnCloudinary } from "../utils/cloudinary.js";
+import { Product } from "../models/product.model.js";
+import { User } from "../models/user.model.js";
+dotenv.config({ path: "/.env" });
+
+/* ─── REGISTER PRODUCT ────────────────────────────────────── */
+const registerProduct = asyncHandler(async (req, res) => {
+  const { Title, Description, Price, Category, Quantity } = req.body;
+  const userId = req.user._id;
+
+  if (!userId) throw new ApiError(400, "User not found");
+  if (!Title || Title.trim() === "") throw new ApiError(400, "Title is required");
+  if (!Description || Description.trim() === "") throw new ApiError(400, "Description is required");
+  if (!Price) throw new ApiError(400, "Price is required");
+  if (!Category || Category.trim() === "") throw new ApiError(400, "Category is required");
+  if (!Quantity) throw new ApiError(400, "Quantity is required");
+
+  // Thumbnail (required)
+  if (!req.files || !req.files.Thumbnail || req.files.Thumbnail.length === 0)
+    throw new ApiError(400, "Thumbnail image is required");
+
+  const thumbnailLocalPath = req.files.Thumbnail[0]?.path;
+  if (!thumbnailLocalPath) throw new ApiError(400, "Thumbnail image is required");
+
+  const thumbnailUpload = await uploadOnCloudinary(thumbnailLocalPath);
+  if (!thumbnailUpload) throw new ApiError(500, "Thumbnail upload failed");
+
+  // Additional images (optional)
+  let imagesUrls = [];
+  if (req.files.Images && req.files.Images.length > 0) {
+    for (const file of req.files.Images) {
+      const uploaded = await uploadOnCloudinary(file.path);
+      if (uploaded) imagesUrls.push(uploaded.secure_url);
+    }
+  }
+
+  const product = await Product.create({
+    Title,
+    Description,
+    Price,
+    Category,
+    Quantity,
+    Owner: userId,
+    Thumbnail: thumbnailUpload.secure_url,
+    Images: imagesUrls,
+  });
+
+  const created = await Product.findById(product._id);
+  if (!created) throw new ApiError(500, "Product creation failed");
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, created, "Product created successfully"));
 });
 
-const registerProduct=asyncHandler(async(req,res)=>{
-    const{Title,Description,Price,Category,Quantity,Rating}=req.body;
-    const userId=req.user._id;
-    if(!userId){
-        throw new ApiError(400,"User not found");
-    }
-    if(Title===""){
-        throw new ApiError(400,"Title is required");
-    }
-    else if(Description===""){
-        throw new ApiError(400,"Description is required");
-    }
-    else if(Price===""){
-        throw new ApiError(400,"Price is required");
-    }
-    else if(Category===""){
-        throw new ApiError(400,"Category is required");
-    }
-    else if(Quantity===""){
-        throw new ApiError(400,"Quantity is required");
-    }
-    else if(Rating===""){
-        throw new ApiError(400,"Rating is required");
-    }
+/* ─── UPDATE PRODUCT DETAILS ──────────────────────────────── */
+const updateProduct = asyncHandler(async (req, res) => {
+  const { Title, Description, Price, Category, Quantity } = req.body;
+  const { productId } = req.params;
 
-    if(!req.files || !req.files.Image || req.files.Image.length === 0){
-        throw new ApiError(400,"Image is required");
-    }
-    
-    
-    const ImageLocalpath=req.files?.Image[0]?.path;
-    if(!ImageLocalpath){
-        throw new ApiError(400,"Image is required");
-    }
-    const Image=await uploadOnCloudinary(ImageLocalpath);
-    if(!Image){
-        throw new ApiError(500,"Image upload failed");
-    }
+  if (!productId) throw new ApiError(400, "Product not found");
+  if (!Title && !Description && !Price && !Category && !Quantity)
+    throw new ApiError(400, "At least one field is required to update");
 
-    const product=await Product.create({
-        Title,
-        Description,
-        Price,
-        Category,
-        Quantity,
-        Rating,
-        Owner: userId,
-        Client: null, 
-        Image: Image.secure_url,
-    })
-    const createProduct=await Product.findById(product._id);
-    if(!createProduct){
-        throw new ApiError(500,"product creation failed due to some internal problem")
-    }
-    return res.status(200).json(
-        new ApiResponse(
-            200,
-            createProduct,
-            "product created successfully"
-        )
-    )
+  const userId = req.user._id;
 
+  const product = await Product.findOneAndUpdate(
+    { _id: productId, Owner: userId },
+    { $set: { Title, Description, Price, Category, Quantity } },
+    { new: true }
+  );
+
+  if (!product) throw new ApiError(500, "Product update failed");
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, product, "Product updated successfully"));
 });
 
-const updateProduct=asyncHandler(async(req,res)=>{
-    const{Title,Description,Price,Category,Quantity,Rating }= req.body;
-    const{productId}= req.params; 
+/* ─── UPDATE IMAGES ───────────────────────────────────────── */
+const updateImage = asyncHandler(async (req, res) => {
+  const { productId } = req.params;
+  const userId = req.user._id;
 
-    if(!productId){
-        throw new ApiError(400,"Product not found");
+  if (!productId) throw new ApiError(400, "Product not found");
+
+  let updateData = {};
+
+  if (req.files?.Thumbnail && req.files.Thumbnail.length > 0) {
+    const uploaded = await uploadOnCloudinary(req.files.Thumbnail[0].path);
+    if (!uploaded) throw new ApiError(500, "Thumbnail upload failed");
+    updateData.Thumbnail = uploaded.secure_url;
+  }
+
+  if (req.files?.Images && req.files.Images.length > 0) {
+    const urls = [];
+    for (const file of req.files.Images) {
+      const uploaded = await uploadOnCloudinary(file.path);
+      if (uploaded) urls.push(uploaded.secure_url);
     }
+    updateData.Images = urls;
+  }
 
-    if(!Title && !Description && !Price && !Category && !Quantity && !Rating){
-        throw new ApiError(400,"At least one field is required to update");
-    }
+  if (Object.keys(updateData).length === 0)
+    throw new ApiError(400, "No images provided");
 
-    const userId=req.user._id;
-    if(!userId){
-        throw new ApiError(400,"User not found");
-    }
+  const product = await Product.findOneAndUpdate(
+    { _id: productId, Owner: userId },
+    { $set: updateData },
+    { new: true }
+  );
 
-    const product=await Product.findOneAndUpdate(
-       {_id:productId,Owner:userId},
-       {
-            $set:{Title,Description,Price,Category,Quantity,Rating},
-        },
-       {new:true}
-    );
+  if (!product) throw new ApiError(500, "Product image update failed");
 
-    if(!product){
-        throw new ApiError(500,"Product update failed due to an internal problem");
-    }
-
-    return res.status(200).json(new ApiResponse(200, product,"Product updated successfully"));
+  return res
+    .status(200)
+    .json(new ApiResponse(200, product, "Product images updated successfully"));
 });
 
-const updateImage=asyncHandler(async(req,res)=>{
-    const{productId}= req.params; 
-    const userId=req.user._id;
+/* ─── DELETE PRODUCT ──────────────────────────────────────── */
+const deleteProduct = asyncHandler(async (req, res) => {
+  const userId = req.user._id;
+  const { productId } = req.body;
 
-    if(!userId){
-        throw new ApiError(400,"User not found");
-    }
-    if(!productId){
-        throw new ApiError(400,"Product not found");
-    }
-    if(!req.files || !req.files.Image || req.files.Image.length === 0){
-        throw new ApiError(400,"Image is required");
-    }
+  if (!productId) throw new ApiError(400, "Product not found");
 
-    const ImageLocalpath=req.files.Image[0]?.path;
-    if(!ImageLocalpath){
-        throw new ApiError(400,"Image is required");
-    }
-    const Image=await uploadOnCloudinary(ImageLocalpath);
-    if(!Image){
-        throw new ApiError(500,"Image upload failed");
-    }
-    const product=await Product.findOneAndUpdate(
-       {_id:productId,Owner:userId },
-       {$set:{Image:Image.secure_url}},
-       {new:true}
-    );
+  const productOwner = await Product.findOne({ _id: productId }).select("Owner");
+  if (!productOwner) throw new ApiError(404, "Product not found");
 
-    if(!product){
-        throw new ApiError(500,"Product image update failed due to an internal problem");
-    }
+  if (userId.toString() !== productOwner.Owner.toString())
+    throw new ApiError(403, "You are not authorized to delete this product");
 
-    return res.status(200).json(
-        new ApiResponse(200,product,"Product image updated successfully")
-    );
+  const product = await Product.findOneAndDelete({ _id: productId, Owner: userId });
+  if (!product) throw new ApiError(500, "Product deletion failed");
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, product, "Product deleted successfully"));
 });
 
-const deleteProduct=asyncHandler(async(req,res)=>{
-    const userId=req.user._id;
-    const{productId}= req.body; 
-
-    if(!userId){
-        throw new ApiError(400,"User not found");
-    }
-    if(!productId){
-        throw new ApiError(400,"Product not found");
-    }
-
-    const productOwner=await Product.findOne({_id:productId}).select("Owner");
-    if(!productOwner){
-        throw new ApiError(404,"Product not found");
-    }
-
-    if(userId.toString()!== productOwner.Owner.toString()){
-        throw new ApiError(403,"You are not authorized to delete this product");
-    }
-
-    const product=await Product.findOneAndDelete({_id:productId,Owner:userId });
-    if(!product){
-        throw new ApiError(500,"Product deletion failed due to an internal problem");
-    }
-
-    return res.status(200).json(new ApiResponse(200,product,"Product deleted successfully"));
+/* ─── SELLER: OWN PRODUCTS ────────────────────────────────── */
+const sell = asyncHandler(async (req, res) => {
+  const userId = req.user._id;
+  const products = await Product.find({ Owner: userId });
+  return res
+    .status(200)
+    .json(new ApiResponse(200, products, "Products fetched successfully"));
 });
 
-const sell=asyncHandler(async(req,res)=>{
-    const userId=req.user._id;
-    if(!userId){
-        throw new ApiError(400,"User not found");
-    }
-    const product=await Product.find({Owner:userId});
-    if(!product){
-        throw new ApiError(500,"product not found due to some internal problem")
-    }
-    return res.status(200).json(
-        new ApiResponse(
-            200,
-            product,
-            "product found successfully"
-        )
-    )
+/* ─── SELLER: PENDING ORDERS ──────────────────────────────── */
+const getSellerPendingOrders = asyncHandler(async (req, res) => {
+  const sellerId = req.user._id;
 
+  // Find all products owned by seller
+  const sellerProducts = await Product.find({ Owner: sellerId }).select("_id Title Thumbnail Price");
+  const productIds = sellerProducts.map((p) => p._id.toString());
+
+  // Find all users who have orders for seller's products with status 'ordered'
+  const buyers = await User.find({
+    "orders.product": { $in: productIds },
+    "orders.status": "ordered",
+  }).select("fullname email phone address orders");
+
+  const pendingOrders = [];
+  for (const buyer of buyers) {
+    for (const order of buyer.orders) {
+      if (
+        productIds.includes(order.product.toString()) &&
+        order.status === "ordered"
+      ) {
+        const product = sellerProducts.find(
+          (p) => p._id.toString() === order.product.toString()
+        );
+        pendingOrders.push({
+          orderId: order._id,
+          product,
+          quantity: order.quantity,
+          priceAtOrder: order.priceAtOrder,
+          orderedAt: order.createdAt,
+          buyer: {
+            id: buyer._id,
+            name: buyer.fullname,
+            email: buyer.email,
+            phone: buyer.phone,
+            address: buyer.address,
+          },
+        });
+      }
+    }
+  }
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, pendingOrders, "Pending orders fetched"));
 });
 
-// const search=asyncHandler(async(req,res)=>{
-//     const{ search }= req.query;
-//     if(!search){
-//         throw new ApiError(400,"Search query is required");
-//     }
+/* ─── SELLER: CONFIRM DELIVERY ────────────────────────────── */
+const confirmDeliveryBySeller = asyncHandler(async (req, res) => {
+  const { buyerEmail, orderId, otp } = req.body;
+  const sellerId = req.user._id;
 
-//     const products=await Product.find({
-//         $or: [
-//            { Title:{ $regex: search, $options: "i" }},
-//            { Description:{ $regex: search, $options: "i" }},
-//            { Category:{ $regex: search, $options: "i" }},
-//         ],
-//     });
+  if (!buyerEmail || !orderId || !otp)
+    throw new ApiError(400, "Buyer email, order ID, and OTP are required");
 
-//     if(!products){
-//         throw new ApiError(404,"No products found");
-//     }
+  const buyer = await User.findOne({ email: buyerEmail });
+  if (!buyer) throw new ApiError(404, "Buyer not found");
 
-//     return res.status(200).json(
-//         new ApiResponse(200, products,"Products found successfully")
-//     );
-// });
+  const order = buyer.orders.id(orderId);
+  if (!order) throw new ApiError(404, "Order not found");
 
-const search=asyncHandler(async(req,res)=>{
-    const{search,category,minPrice,maxPrice,sortBy,sortOrder }=req.query;
-    if(!search){
-        throw new ApiError(400,"Search query is required");}
-        
-    let filter={
-        $or:[
-           {Title:{$regex:search,$options:"i"}},
-           {Description:{$regex:search,$options:"i"}},
-           {Category:{$regex:search,$options:"i" }},
-        ],
-    };
+  // Verify seller owns the product
+  const product = await Product.findById(order.product);
+  if (!product) throw new ApiError(404, "Product not found");
+  if (product.Owner.toString() !== sellerId.toString())
+    throw new ApiError(403, "You are not authorized to confirm this order");
 
-    if(category){filter.Category=category;}
-    if(minPrice){filter.Price ={ ...filter.Price,$gte:minPrice };}
-    if(maxPrice){filter.Price ={ ...filter.Price,$lte:maxPrice };}
-    let sort ={};
-    if(sortBy){sort[sortBy]=sortOrder==='desc'? -1:1;}
-    const products=await Product.find(filter).sort(sort);
-    if(!products){throw new ApiError(404,"No products found");}
+  if (order.status === "delivered")
+    throw new ApiError(400, "Order already marked as delivered");
 
-    return res.status(200).json(
-        new ApiResponse(200, products,"Products found successfully")
-    );
+  if (order.otp !== otp.trim())
+    throw new ApiError(400, "Invalid OTP. Please ask the buyer for the correct OTP.");
+
+  order.status = "delivered";
+  await buyer.save();
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, {}, "Delivery confirmed successfully"));
 });
 
-const addToCart=asyncHandler(async(req,res)=>{
-    const{productId}=req.body;
-    const userId=req.user._id; 
+/* ─── SELLER: SOLD ITEMS ──────────────────────────────────── */
+const getSellerSoldItems = asyncHandler(async (req, res) => {
+  const sellerId = req.user._id;
 
-    if(!productId){
-        throw new ApiError(400,"Product ID is required");
+  const sellerProducts = await Product.find({ Owner: sellerId }).select("_id Title Thumbnail Price");
+  const productIds = sellerProducts.map((p) => p._id.toString());
+
+  const buyers = await User.find({
+    "orders.product": { $in: productIds },
+    "orders.status": "delivered",
+  }).select("fullname email phone address orders");
+
+  const soldItems = [];
+  for (const buyer of buyers) {
+    for (const order of buyer.orders) {
+      if (
+        productIds.includes(order.product.toString()) &&
+        order.status === "delivered"
+      ) {
+        const product = sellerProducts.find(
+          (p) => p._id.toString() === order.product.toString()
+        );
+        soldItems.push({
+          orderId: order._id,
+          product,
+          quantity: order.quantity,
+          priceAtOrder: order.priceAtOrder,
+          deliveredAt: order.updatedAt,
+          buyer: {
+            name: buyer.fullname,
+            email: buyer.email,
+            phone: buyer.phone,
+          },
+        });
+      }
     }
-    const product=await Product.findById(productId);
-      
-    if(!product){
-        throw new ApiError(404,"Product not found");
-    }
-    // console.log("product data = ",product)
-    if (String(product.Owner) === String(userId)) {
-        throw new ApiError(400, "You cannot add your own product to the cart");
-    }
-    product.Client=userId;
-    await product.save();
-    const user = await User.findByIdAndUpdate(
-        userId,
-        {$addToSet:{cart:productId}},
-        {new:true}
-    );
-    // console.log("after = ",product)
-    res.status(200).json(
-        new ApiResponse(200, user,"Product added to cart successfully")
-    );
+  }
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, soldItems, "Sold items fetched"));
 });
 
-const removeFromCart=asyncHandler(async(req,res)=>{
-    const{productId}= req.body;
-    const userId=req.user._id;
-    if(!productId)throw new ApiError(400,"Product ID is required");
-    const product = await Product.findByIdAndUpdate(
-        productId,
-        {$unset: { Client: ""}},
-        {new: true}
-    );
-    if(!product){
-        throw new ApiError(404, "Product not found");
-    }
-    const user = await User.findByIdAndUpdate(
-        userId,
-        { $pull:{ cart: productId}}, 
-        { new: true }
-    );
+/* ─── SEARCH ──────────────────────────────────────────────── */
+const search = asyncHandler(async (req, res) => {
+  const { search, category, minPrice, maxPrice, sortBy, sortOrder } = req.query;
 
-    res.status(200).json(new ApiResponse(200, user, "Product removed from cart successfully"));
+  let filter = {};
+
+  if (search) {
+    filter.$or = [
+      { Title: { $regex: search, $options: "i" } },
+      { Description: { $regex: search, $options: "i" } },
+      { Category: { $regex: search, $options: "i" } },
+    ];
+  }
+
+  if (category) filter.Category = category;
+  if (minPrice) filter.Price = { ...filter.Price, $gte: Number(minPrice) };
+  if (maxPrice) filter.Price = { ...filter.Price, $lte: Number(maxPrice) };
+
+  // Exclude seller's own products if logged in
+  if (req.user?._id) {
+    filter.Owner = { $ne: req.user._id };
+  }
+
+  let sort = {};
+  if (sortBy) sort[sortBy] = sortOrder === "desc" ? -1 : 1;
+
+  const products = await Product.find(filter).sort(sort);
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, products, "Products found successfully"));
 });
 
-const getCartList=asyncHandler(async(req,res)=>{
-    const userId=req.user._id;
-    const user=await Product.find({Client:userId});
-    if(!user)throw new ApiError(404,"User not found");
-    res.status(200).json(new ApiResponse(200, user,"Cart list fetched successfully"));
+/* ─── GET ALL PRODUCTS (for home page) ────────────────────── */
+const getAllProducts = asyncHandler(async (req, res) => {
+  let filter = { Quantity: { $gt: 0 } };
+
+  // Exclude own products if authenticated
+  if (req.user?._id) {
+    filter.Owner = { $ne: req.user._id };
+  }
+
+  const products = await Product.find(filter)
+    .populate("Owner", "fullname")
+    .sort({ createdAt: -1 });
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, products, "Products fetched successfully"));
 });
 
-const getproductdetailsforproductpage=asyncHandler(async(req,res)=>{
-    const{productId}= req.params;
-    if(!productId){
-        throw new ApiError(400,"Product ID is required");
-    }
-    const product=await Product.findById(productId);
-    if(!product){
-        throw new ApiError(404,"Product not found");
-    }
-    res.status(200).json(new ApiResponse(200, product,"Product details fetched successfully"));
-});
-export{registerProduct,
-    updateProduct,
-    updateImage,
-    deleteProduct,
-    sell,
-    search,
-    addToCart,
-    removeFromCart,
-    getCartList,
-    getproductdetailsforproductpage
+/* ─── CART OPERATIONS ─────────────────────────────────────── */
+const addToCart = asyncHandler(async (req, res) => {
+  const { productId, quantity } = req.body;
+  const userId = req.user._id;
+  const qty = parseInt(quantity) || 1;
 
+  if (!productId) throw new ApiError(400, "Product ID is required");
+
+  const product = await Product.findById(productId);
+  if (!product) throw new ApiError(404, "Product not found");
+
+  if (String(product.Owner) === String(userId))
+    throw new ApiError(400, "You cannot add your own product to the cart");
+
+  if (product.Quantity < qty)
+    throw new ApiError(400, `Only ${product.Quantity} units available`);
+
+  const user = await User.findById(userId);
+  const cartIndex = user.cart.findIndex(
+    (item) => item.product.toString() === productId
+  );
+
+  if (cartIndex > -1) {
+    user.cart[cartIndex].quantity = qty;
+  } else {
+    user.cart.push({ product: productId, quantity: qty });
+  }
+
+  await user.save();
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, user.cart, "Product added to cart successfully"));
+});
+
+const removeFromCart = asyncHandler(async (req, res) => {
+  const { productId } = req.body;
+  const userId = req.user._id;
+
+  if (!productId) throw new ApiError(400, "Product ID is required");
+
+  const user = await User.findByIdAndUpdate(
+    userId,
+    { $pull: { cart: { product: productId } } },
+    { new: true }
+  );
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, user.cart, "Product removed from cart"));
+});
+
+/* ─── PRODUCT DETAIL PAGE ─────────────────────────────────── */
+const getproductdetailsforproductpage = asyncHandler(async (req, res) => {
+  const { productId } = req.params;
+  if (!productId) throw new ApiError(400, "Product ID is required");
+
+  const product = await Product.findById(productId)
+    .populate("Owner", "fullname email")
+    .populate("reviews.user", "fullname username");
+
+  if (!product) throw new ApiError(404, "Product not found");
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, product, "Product details fetched successfully"));
+});
+
+export {
+  registerProduct,
+  updateProduct,
+  updateImage,
+  deleteProduct,
+  sell,
+  search,
+  getAllProducts,
+  addToCart,
+  removeFromCart,
+  getproductdetailsforproductpage,
+  getSellerPendingOrders,
+  getSellerSoldItems,
+  confirmDeliveryBySeller,
 };
