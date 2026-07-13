@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import Navbar from "./Navbar";
+import apiFetch from "../utils/apiFetch";
 
 function Bill() {
   const [searchParams] = useSearchParams();
@@ -61,28 +62,17 @@ function Bill() {
     if (paymentMethod === "card" && !cardDetails.cardNumber.trim()) { showAlert("Please enter card details"); return; }
 
     setPlacing(true);
-    try {
-      const body = {};
-      if (directBuyProductId) {
-        body.directBuyProductId = directBuyProductId;
-        body.directBuyQuantity = directBuyQty;
-      }
-      body.paymentMethod = paymentMethod;
+    const body = { paymentMethod };
+    if (directBuyProductId) { body.directBuyProductId = directBuyProductId; body.directBuyQuantity = directBuyQty; }
 
-      const res = await fetch("http://localhost:8000/e-2market/v1/users/addtoOrder", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setOrderSuccess(true);
-        showAlert("Order placed successfully! OTP sent to your email.", "success");
-      } else {
-        showAlert(data.message || "Failed to place order");
-      }
-    } catch { showAlert("Network error"); }
+    const result = await apiFetch("http://localhost:8000/e-2market/v1/users/addtoOrder", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (result.ok) { setOrderSuccess(true); showAlert("Order placed! OTP sent to your email.", "success"); }
+    else showAlert(result.message);
     setPlacing(false);
   };
 

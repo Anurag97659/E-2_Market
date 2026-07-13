@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Navbar from "./Navbar";
+import apiFetch from "../utils/apiFetch";
 
 function Home() {
   const [products, setProducts] = useState([]);
@@ -35,20 +36,16 @@ function Home() {
       .catch(() => setLoading(false));
   }, []);
 
-  const addToCart = (productId) => {
+  const addToCart = async (productId) => {
     if (!user) { navigate("/login"); return; }
-    fetch("http://localhost:8000/e-2market/v1/products/addToCart", {
+    const result = await apiFetch("http://localhost:8000/e-2market/v1/products/addToCart", {
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ productId, quantity: 1 }),
-    })
-      .then((r) => r.json())
-      .then((d) => {
-        if (d.statusCode === 200) showAlert("Added to cart", "success");
-        else showAlert(d.message || "Failed to add to cart");
-      })
-      .catch(() => showAlert("Failed to add to cart"));
+    });
+    if (result.ok) showAlert("Added to cart successfully", "success");
+    else showAlert(result.message);
   };
 
   const stars = (avg) => {

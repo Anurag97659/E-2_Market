@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
+import apiFetch from "../utils/apiFetch";
 
 function Registration() {
   const [step, setStep] = useState(1); // 1=form, 2=otp
@@ -23,53 +24,31 @@ function Registration() {
 
   const sendOTP = async (e) => {
     e.preventDefault();
-    if (password !== confirmPassword) {
-      showAlert("Passwords do not match");
-      return;
-    }
-    if (password.length < 8) {
-      showAlert("Password must be at least 8 characters");
-      return;
-    }
+    if (password !== confirmPassword) { showAlert("Passwords do not match"); return; }
+    if (password.length < 8) { showAlert("Password must be at least 8 characters"); return; }
     setLoading(true);
-    try {
-      const res = await fetch("http://localhost:8000/e-2market/v1/users/sendRegistrationOTP", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password, fullname, email, phone, address }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        showAlert(data.message || "Failed to send OTP");
-      } else {
-        showAlert("OTP sent to your email", "success");
-        setStep(2);
-      }
-    } catch {
-      showAlert("Network error. Please try again.");
-    }
+    const result = await apiFetch("http://localhost:8000/e-2market/v1/users/sendRegistrationOTP", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password, fullname, email, phone, address }),
+    });
+    if (result.ok) { showAlert("OTP sent to your email", "success"); setStep(2); }
+    else showAlert(result.message);
     setLoading(false);
   };
 
   const verifyOTP = async (e) => {
     e.preventDefault();
     setLoading(true);
-    try {
-      const res = await fetch("http://localhost:8000/e-2market/v1/users/verifyRegistrationOTP", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, otp }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        showAlert(data.message || "Invalid OTP");
-      } else {
-        showAlert("Account created successfully!", "success");
-        setTimeout(() => navigate("/login"), 1500);
-      }
-    } catch {
-      showAlert("Network error. Please try again.");
-    }
+    const result = await apiFetch("http://localhost:8000/e-2market/v1/users/verifyRegistrationOTP", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, otp }),
+    });
+    if (result.ok) {
+      showAlert("Account created successfully!", "success");
+      setTimeout(() => navigate("/login"), 1500);
+    } else showAlert(result.message);
     setLoading(false);
   };
 

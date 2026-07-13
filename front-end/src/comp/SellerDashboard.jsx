@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import Navbar from "./Navbar";
+import apiFetch from "../utils/apiFetch";
 
 function SellerDashboard() {
   const [searchParams] = useSearchParams();
@@ -39,39 +40,31 @@ function SellerDashboard() {
 
   const handleDelete = async (productId) => {
     if (!window.confirm("Delete this product?")) return;
-    try {
-      const res = await fetch("http://localhost:8000/e-2market/v1/products/deleteProduct", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ productId }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setProducts((p) => p.filter((x) => x._id !== productId));
-        showAlert("Product deleted", "success");
-      } else showAlert(data.message || "Delete failed");
-    } catch { showAlert("Network error"); }
+    const result = await apiFetch("http://localhost:8000/e-2market/v1/products/deleteProduct", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ productId }),
+    });
+    if (result.ok) { setProducts((p) => p.filter((x) => x._id !== productId)); showAlert("Product deleted", "success"); }
+    else showAlert(result.message);
   };
 
   const confirmDelivery = async (orderId, buyerEmail) => {
     const otp = otpInputs[orderId];
-    if (!otp || otp.length < 4) { showAlert("Enter the OTP from buyer"); return; }
-    try {
-      const res = await fetch("http://localhost:8000/e-2market/v1/products/seller/confirmDelivery", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ buyerEmail, orderId, otp }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        showAlert("Delivery confirmed! Order moved to Sold Items", "success");
-        const confirmed = pendingOrders.find((o) => o.orderId === orderId || o.orderId.toString() === orderId.toString());
-        setPendingOrders((p) => p.filter((o) => (o.orderId || o.orderId?.toString()) !== orderId.toString()));
-        if (confirmed) setSoldItems((s) => [...s, { ...confirmed, status: "delivered" }]);
-      } else showAlert(data.message || "Confirmation failed");
-    } catch { showAlert("Network error"); }
+    if (!otp || otp.length < 4) { showAlert("Enter the OTP shared by the buyer"); return; }
+    const result = await apiFetch("http://localhost:8000/e-2market/v1/products/seller/confirmDelivery", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ buyerEmail, orderId, otp }),
+    });
+    if (result.ok) {
+      showAlert("Delivery confirmed! Order moved to Sold Items", "success");
+      const confirmed = pendingOrders.find((o) => o.orderId === orderId || o.orderId?.toString() === orderId.toString());
+      setPendingOrders((p) => p.filter((o) => (o.orderId?.toString()) !== orderId.toString()));
+      if (confirmed) setSoldItems((s) => [...s, { ...confirmed, status: "delivered" }]);
+    } else showAlert(result.message);
   };
 
   const tabs = [

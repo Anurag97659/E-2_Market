@@ -56,6 +56,11 @@ router.route("/addtoOrder").post(verifyJWT, addToOrders);
 router.route("/cancelOrder").post(verifyJWT, cancelOrder);
 
 // Reviews
-router.route("/addReview").post(verifyJWT, addReview);
+router.route("/addReview").post(
+  verifyJWT,
+  upload.fields([{ name: "reviewMedia", maxCount: 5 }]),
+  addReview
+);
+
 
 export default router;

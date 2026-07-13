@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import apiFetch from "../utils/apiFetch";
 
 function Login() {
   const [username, setUsername] = useState("");
@@ -16,23 +17,14 @@ function Login() {
   const submit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    try {
-      const res = await fetch("http://localhost:8000/e-2market/v1/users/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password }),
-        credentials: "include",
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        showAlert(data.message || "Login failed");
-      } else {
-        showAlert("Login successful", "success");
-        setTimeout(() => navigate("/"), 800);
-      }
-    } catch {
-      showAlert("Network error. Please try again.");
-    }
+    const result = await apiFetch("http://localhost:8000/e-2market/v1/users/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password }),
+      credentials: "include",
+    });
+    if (result.ok) { showAlert("Login successful", "success"); setTimeout(() => navigate("/"), 800); }
+    else showAlert(result.message);
     setLoading(false);
   };
 

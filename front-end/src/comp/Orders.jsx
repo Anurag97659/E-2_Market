@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import Navbar from "./Navbar";
+import apiFetch from "../utils/apiFetch";
 
 function Orders() {
   const [orderItems, setOrderItems] = useState([]);
@@ -29,19 +30,14 @@ function Orders() {
 
   const cancelOrder = async (orderId) => {
     if (!window.confirm("Cancel this order?")) return;
-    try {
-      const res = await fetch("http://localhost:8000/e-2market/v1/users/cancelOrder", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orderId }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        showAlert("Order cancelled", "success");
-        setOrderItems((prev) => prev.filter((o) => o._id !== orderId));
-      } else showAlert(data.message || "Cancel failed");
-    } catch { showAlert("Network error"); }
+    const result = await apiFetch("http://localhost:8000/e-2market/v1/users/cancelOrder", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orderId }),
+    });
+    if (result.ok) { showAlert("Order cancelled", "success"); setOrderItems((prev) => prev.filter((o) => o._id !== orderId)); }
+    else showAlert(result.message);
   };
 
   const statusColor = (status) => status === "delivered" ? "#10b981" : "#f59e0b";

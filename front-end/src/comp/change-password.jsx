@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Navbar from "./Navbar";
+import apiFetch from "../utils/apiFetch";
 
 function ChangePassword() {
   const [oldPassword, setOldPassword] = useState("");
@@ -20,19 +21,14 @@ function ChangePassword() {
     if (newPassword !== confirmPassword) { showAlert("Passwords do not match"); return; }
     if (newPassword.length < 8) { showAlert("Password must be at least 8 characters"); return; }
     setLoading(true);
-    try {
-      const res = await fetch("http://localhost:8000/e-2market/v1/users/changePassword", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ oldPassword, newPassword, confirmPassword }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        showAlert("Password changed successfully!", "success");
-        setTimeout(() => navigate("/profile"), 1200);
-      } else showAlert(data.message || "Password change failed");
-    } catch { showAlert("Network error"); }
+    const result = await apiFetch("http://localhost:8000/e-2market/v1/users/changePassword", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ oldPassword, newPassword, confirmPassword }),
+    });
+    if (result.ok) { showAlert("Password changed successfully!", "success"); setTimeout(() => navigate("/profile"), 1200); }
+    else showAlert(result.message);
     setLoading(false);
   };
 

@@ -4,6 +4,7 @@ import { User } from "../models/user.model.js";
 import { Product } from "../models/product.model.js";
 import jwt from "jsonwebtoken";
 import { ApiResponse } from "../utils/ApiResponse.js";
+import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import {
   sendOTPEmail,
   sendForgotPasswordEmail,
@@ -12,6 +13,7 @@ import {
 } from "../utils/mailer.js";
 import dotenv from "dotenv";
 dotenv.config({ path: "/.env" });
+
 
 /* ─── helpers ─────────────────────────────────────────────── */
 const generateOTP = () =>
@@ -540,7 +542,16 @@ const addReview = asyncHandler(async (req, res) => {
   if (existingReview)
     throw new ApiError(400, "You have already reviewed this product");
 
-  product.reviews.push({ user: userId, rating: Number(rating), comment });
+  // Upload review media if any
+  let mediaUrls = [];
+  if (req.files && req.files.reviewMedia && req.files.reviewMedia.length > 0) {
+    for (const file of req.files.reviewMedia) {
+      const uploaded = await uploadOnCloudinary(file.path);
+      if (uploaded) mediaUrls.push(uploaded.secure_url);
+    }
+  }
+
+  product.reviews.push({ user: userId, rating: Number(rating), comment, media: mediaUrls });
   await product.save();
 
   // Mark the order as reviewed
@@ -548,7 +559,7 @@ const addReview = asyncHandler(async (req, res) => {
     (o) => o.product.toString() === productId && o.status === "delivered" && !o.review
   );
   if (orderToMark) {
-    orderToMark.review = { user: userId, rating: Number(rating), comment };
+    orderToMark.review = { user: userId, rating: Number(rating), comment, media: mediaUrls };
     await user.save();
   }
 
@@ -556,6 +567,7 @@ const addReview = asyncHandler(async (req, res) => {
     .status(200)
     .json(new ApiResponse(200, {}, "Review submitted successfully"));
 });
+
 
 export {
   sendRegistrationOTP,

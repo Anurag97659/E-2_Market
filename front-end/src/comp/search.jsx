@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Navbar from "./Navbar";
+import apiFetch from "../utils/apiFetch";
 
 function Search() {
   const [result, setResult] = useState([]);
@@ -23,39 +24,24 @@ function Search() {
   const submit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    const query = new URLSearchParams({
-      search: searchQuery,
-      category,
-      minPrice,
-      maxPrice,
-      sortBy,
-      sortOrder,
-    }).toString();
-
-    try {
-      const res = await fetch(`http://localhost:8000/e-2market/v1/products/search?${query}`, {
-        credentials: "include",
-      });
-      const data = await res.json();
-      setResult(data?.data || []);
-      setSearched(true);
-    } catch { showAlert("Search failed"); }
+    const query = new URLSearchParams({ search: searchQuery, category, minPrice, maxPrice, sortBy, sortOrder }).toString();
+    const result = await apiFetch(`http://localhost:8000/e-2market/v1/products/search?${query}`, { credentials: "include" });
+    if (result.ok) setResult(Array.isArray(result.data) ? result.data : []);
+    else showAlert(result.message);
+    setSearched(true);
     setLoading(false);
   };
 
   const addToCart = async (productId) => {
-    try {
-      const res = await fetch("http://localhost:8000/e-2market/v1/products/addToCart", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ productId, quantity: 1 }),
-      });
-      if (res.status === 401) { navigate("/login"); return; }
-      const data = await res.json();
-      if (res.ok) showAlert("Added to cart", "success");
-      else showAlert(data.message || "Failed to add to cart");
-    } catch { showAlert("Network error"); }
+    const result = await apiFetch("http://localhost:8000/e-2market/v1/products/addToCart", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ productId, quantity: 1 }),
+    });
+    if (result.ok) showAlert("Added to cart successfully", "success");
+    else if (result.message === "Network error. Please check your connection.") showAlert(result.message);
+    else { navigate("/login"); }
   };
 
   const inputStyle = {

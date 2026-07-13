@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Navbar from "./Navbar";
+import apiFetch from "../utils/apiFetch";
 
 function ChangeDetails() {
   const [username, setUsername] = useState("");
@@ -39,22 +40,17 @@ function ChangeDetails() {
   const submit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    try {
-      const body = { username, email, fullname, phone, address };
-      if (email && otpSent) body.otp = emailOtp;
+    const body = { username, email, fullname, phone, address };
+    if (email && otpSent) body.otp = emailOtp;
 
-      const res = await fetch("http://localhost:8000/e-2market/v1/users/updateDetails", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify(body),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        showAlert("Details updated successfully", "success");
-        setTimeout(() => navigate("/profile"), 1200);
-      } else showAlert(data.message || "Update failed");
-    } catch { showAlert("Network error"); }
+    const result = await apiFetch("http://localhost:8000/e-2market/v1/users/updateDetails", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify(body),
+    });
+    if (result.ok) { showAlert("Details updated successfully", "success"); setTimeout(() => navigate("/profile"), 1200); }
+    else showAlert(result.message);
     setLoading(false);
   };
 
