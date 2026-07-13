@@ -1,135 +1,218 @@
-import React,{useState} from "react";
+import React, { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import Navbar from "./Navbar";
+import apiFetch from "../utils/apiFetch";
 
-function ChangeDetails(){
-  const[username,setUsername]=useState("");
-  const[email,setEmail]=useState("");
-  const[fullname,setFullname]=useState("");
-  const[phone,setPhone]=useState("");
-  const[address,setAddress]=useState("");
+function ChangeDetails() {
+  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
+  const [fullname, setFullname] = useState("");
+  const [phone, setPhone] = useState("");
+  const [address, setAddress] = useState("");
+  const [emailOtp, setEmailOtp] = useState("");
+  const [otpSent, setOtpSent] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [alert, setAlert] = useState(null);
+  const navigate = useNavigate();
 
-  const submit=(e)=>{
-    e.preventDefault();
+  const showAlert = (msg, type = "error") => {
+    setAlert({ msg, type });
+    setTimeout(() => setAlert(null), 4000);
+  };
 
-    try{
-      fetch('http://localhost:8000/e-2market/v1/users/updateDetails',{
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({username,email,fullname,phone,address}),
-        credentials: 'include',
-      })
-        .then((res)=>res.json())
-        .then((data) =>{
-          if (data.error){
-            alert(data.error);
-          } else {
-            alert('Details changed successfully');
-            window.location.href='/login';
-          }
-        })
-        .catch((error) =>{
-          alert("Details change failed: " + error.message);
-        });
-    }catch (error){
-      alert(error.message);
+  const sendEmailOTP = async () => {
+    if (!email.trim()) { showAlert("Enter the new email first"); return; }
+    setLoading(true);
+    const result = await apiFetch("http://localhost:8000/e-2market/v1/users/sendChangeEmailOTP", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ newEmail: email }),
+    });
+    if (result.ok) {
+      showAlert("OTP sent to new email", "success");
+      setOtpSent(true);
+    } else {
+      showAlert(result.message);
     }
+    setLoading(false);
+  };
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    const body = { username, email, fullname, phone, address };
+    if (email && otpSent) body.otp = emailOtp;
+
+    const result = await apiFetch("http://localhost:8000/e-2market/v1/users/updateDetails", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify(body),
+    });
+    if (result.ok) { showAlert("Details updated successfully", "success"); setTimeout(() => navigate("/profile"), 1200); }
+    else showAlert(result.message);
+    setLoading(false);
+  };
+
+  const inputStyle = {
+    width: "100%",
+    padding: "11px 14px",
+    background: "rgba(51,65,85,0.5)",
+    border: "1px solid rgba(100,116,139,0.5)",
+    borderRadius: "10px",
+    color: "#fff",
+    fontSize: "14px",
+    outline: "none",
+    boxSizing: "border-box",
+  };
+
+  const labelStyle = {
+    display: "block",
+    fontSize: "11px",
+    fontWeight: "700",
+    color: "#94a3b8",
+    textTransform: "uppercase",
+    letterSpacing: "1px",
+    marginBottom: "6px",
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-4">
-      <div className="w-full max-w-md bg-gradient-to-br from-slate-800 to-slate-700 rounded-3xl shadow-2xl p-8 border border-purple-500/30 hover:border-purple-500/60 transition-all duration-300">
-        <h2 className="text-4xl font-bold bg-gradient-to-r from-purple-400 via-pink-400 to-purple-400 bg-clip-text text-transparent mb-8 text-center">
-          Update Details
-        </h2>
-        <form onSubmit={submit} id="form" className="space-y-6">
-          <div>
-            <label htmlFor="uname" className="block text-sm font-bold text-purple-300 mb-2">
-              Username
-            </label>
-            <input
-              type="text"
-              id="uname"
-              placeholder="Enter Username"
-              name="uname"
-              value={username}
-              onChange={(e)=>setUsername(e.target.value)}
-              required
-              className="w-full px-4 py-3 bg-slate-700/50 border border-purple-500/30 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition duration-200"
-            />
-          </div>
+    <div style={{ minHeight: "100vh", background: "var(--bg-gradient)" }}>
+      <Navbar />
 
-          <div>
-            <label htmlFor="email" className="block text-sm font-bold text-purple-300 mb-2">
-              Email
-            </label>
-            <input
-              type="email"
-              id="email"
-              placeholder="Enter Email"
-              name="email"
-              value={email}
-              onChange={(e)=>setEmail(e.target.value)}
-              required
-              className="w-full px-4 py-3 bg-slate-700/50 border border-purple-500/30 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition duration-200"
-            />
-          </div>
+      {alert && (
+        <div style={{
+          position: "fixed",
+          top: "80px",
+          left: "50%",
+          transform: "translateX(-50%)",
+          background: alert.type === "success" ? "rgba(16,185,129,0.15)" : "rgba(239,68,68,0.12)",
+          border: `1px solid ${alert.type === "success" ? "#10b981" : "#ef4444"}`,
+          color: alert.type === "success" ? "#6ee7b7" : "#fca5a5",
+          padding: "12px 28px",
+          borderRadius: "10px",
+          fontWeight: "600",
+          fontSize: "14px",
+          zIndex: 300,
+          backdropFilter: "blur(12px)",
+          whiteSpace: "nowrap",
+        }}>
+          {alert.msg}
+        </div>
+      )}
 
-          <div>
-            <label htmlFor="fullname" className="block text-sm font-bold text-purple-300 mb-2">
-              Full Name
-            </label>
-            <input
-              type="text"
-              id="fullname"
-              placeholder="Enter Full Name"
-              name="fullname"
-              value={fullname}
-              onChange={(e)=>setFullname(e.target.value)}
-              required
-              className="w-full px-4 py-3 bg-slate-700/50 border border-purple-500/30 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition duration-200"
-            />
-          </div>
+      <div style={{ maxWidth: "500px", margin: "40px auto", padding: "0 24px" }}>
+        <div style={{
+          background: "rgba(30,27,75,0.7)",
+          backdropFilter: "blur(20px)",
+          borderRadius: "20px",
+          border: "1px solid rgba(139,92,246,0.25)",
+          padding: "36px",
+        }}>
+          <h2 style={{
+            textAlign: "center",
+            fontSize: "24px",
+            fontWeight: "900",
+            background: "linear-gradient(90deg,#60a5fa,#a855f7,#ec4899)",
+            WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent",
+            marginBottom: "28px",
+          }}>
+            Update Profile Details
+          </h2>
 
-          <div>
-            <label htmlFor="phone" className="block text-sm font-bold text-purple-300 mb-2">
-              Phone
-            </label>
-            <input
-              type="text"
-              id="phone"
-              placeholder="Enter Phone Number"
-              name="phone"
-              value={phone}
-              onChange={(e)=>setPhone(e.target.value)}
-              required
-              className="w-full px-4 py-3 bg-slate-700/50 border border-purple-500/30 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition duration-200"
-            />
-          </div>
+          <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+            <div>
+              <label style={labelStyle}>Username</label>
+              <input style={inputStyle} type="text" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="Leave blank to keep current" />
+            </div>
 
-          <div>
-            <label htmlFor="address" className="block text-sm font-bold text-purple-300 mb-2">
-              Address
-            </label>
-            <input
-              type="text"
-              id="address"
-              placeholder="Enter Address"
-              name="address"
-              value={address}
-              onChange={(e)=>setAddress(e.target.value)}
-              required
-              className="w-full px-4 py-3 bg-slate-700/50 border border-purple-500/30 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition duration-200"
-            />
-          </div>
+            <div>
+              <label style={labelStyle}>Email (OTP verification required)</label>
+              <div style={{ display: "flex", gap: "8px" }}>
+                <input
+                  style={{ ...inputStyle, flex: 1 }}
+                  type="email"
+                  value={email}
+                  onChange={(e) => { setEmail(e.target.value); setOtpSent(false); }}
+                  placeholder="Leave blank to keep current"
+                />
+                {email && (
+                  <button
+                    type="button"
+                    onClick={sendEmailOTP}
+                    disabled={loading}
+                    style={{
+                      padding: "0 14px",
+                      background: otpSent ? "#374151" : "linear-gradient(135deg,#7c3aed,#a855f7)",
+                      color: "#fff",
+                      border: "none",
+                      borderRadius: "10px",
+                      fontSize: "12px",
+                      fontWeight: "700",
+                      cursor: loading || otpSent ? "not-allowed" : "pointer",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {otpSent ? "OTP Sent" : "Send OTP"}
+                  </button>
+                )}
+              </div>
+              {otpSent && (
+                <div style={{ marginTop: "8px" }}>
+                  <input
+                    style={inputStyle}
+                    type="text"
+                    value={emailOtp}
+                    onChange={(e) => setEmailOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                    placeholder="Enter 6-digit OTP"
+                    maxLength={6}
+                  />
+                </div>
+              )}
+            </div>
 
-          <button
-            type="submit"
-            className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold py-3 rounded-xl hover:from-purple-700 hover:to-pink-700 transition duration-300 shadow-lg hover:shadow-purple-500/50 transform hover:scale-105"
-          >
-            Update Details
-          </button>
-        </form>
+            <div>
+              <label style={labelStyle}>Full Name</label>
+              <input style={inputStyle} type="text" value={fullname} onChange={(e) => setFullname(e.target.value)} placeholder="Leave blank to keep current" />
+            </div>
+
+            <div>
+              <label style={labelStyle}>Phone</label>
+              <input style={inputStyle} type="text" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Leave blank to keep current" />
+            </div>
+
+            <div>
+              <label style={labelStyle}>Address</label>
+              <input style={inputStyle} type="text" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Leave blank to keep current" />
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              style={{
+                padding: "13px",
+                background: loading ? "#374151" : "linear-gradient(135deg,#6d28d9,#a855f7,#ec4899)",
+                color: "#fff",
+                border: "none",
+                borderRadius: "12px",
+                fontWeight: "700",
+                fontSize: "15px",
+                cursor: loading ? "not-allowed" : "pointer",
+                marginTop: "8px",
+              }}
+            >
+              {loading ? "Updating..." : "Update Details"}
+            </button>
+          </form>
+
+          <p style={{ textAlign: "center", marginTop: "20px", fontSize: "13px", color: "#64748b" }}>
+            <Link to="/profile" style={{ color: "#c084fc", fontWeight: "700", textDecoration: "none" }}>
+              Back to Profile
+            </Link>
+          </p>
+        </div>
       </div>
     </div>
   );

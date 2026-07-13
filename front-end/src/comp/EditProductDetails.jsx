@@ -1,110 +1,172 @@
-import React,{useState,} from "react";
-import{useParams,useNavigate} from "react-router-dom";
+import React, { useState } from "react";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import { motion } from "framer-motion";
+import Navbar from "./Navbar";
+import apiFetch from "../utils/apiFetch";
 
-function EditProductDetails(){
-    const{productId}=useParams(); 
-    const navigate=useNavigate(); 
-    const[Title,setTitle]=useState("");
-    const[Description,setDescription]=useState("");
-    const[Price,setPrice]=useState("");
-    const[Category,setCategory]=useState("");
-    const[Quantity,setQuantity]=useState("");
+function EditProductDetails() {
+  const { productId } = useParams();
+  const navigate = useNavigate();
+  const [Title, setTitle] = useState("");
+  const [Description, setDescription] = useState("");
+  const [Price, setPrice] = useState("");
+  const [Category, setCategory] = useState("");
+  const [Quantity, setQuantity] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [alert, setAlert] = useState(null);
 
-    const handleSubmit=async(e) =>{
-        e.preventDefault();
-        try{
-            const response=await fetch(
-                `http://localhost:8000/e-2market/v1/products/updateProduct/${productId}`,
-               {
-                    method:"PUT",
-                    headers:{
-                        "Content-Type":"application/json",
-                    },
-                    credentials:"include",
-                    body: JSON.stringify({Title,Description,Price,Category,Quantity}),
-                }
-            );
+  const showAlert = (msg, type = "error") => {
+    setAlert({ msg, type });
+    setTimeout(() => setAlert(null), 4000);
+  };
 
-            const data=await response.json();
-
-            if(data.error){
-                alert(data.error);
-            } else{
-                alert("Product updated successfully!");
-                navigate("/dash"); 
-            }
-        } catch(error){
-            console.error("Error updating product:", error);
-        }
-    };
-
-    return(
-        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center px-4 py-4 relative overflow-hidden">
-            <div className="absolute inset-0 bg-grid-white/10 bg-[size:20px_20px]"></div>
-            <div className="absolute top-0 left-1/4 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl"></div>
-            <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl"></div>
-
-            <motion.div
-                initial={{y: 20, opacity: 0}}
-                animate={{y: 0, opacity: 1}}
-                transition={{duration: 0.6, ease: "easeOut"}}
-                className="w-full max-w-2xl bg-gradient-to-br from-slate-800/80 to-slate-900/80 backdrop-blur-2xl rounded-3xl shadow-2xl p-8 md:p-10 border border-purple-500/20 relative z-10"
-            >
-                <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-purple-500/10 to-blue-500/10 pointer-events-none"></div>
-
-                <div className="relative z-20">
-                    <h2 className="text-3xl font-black bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent mb-2 text-center">
-                        Update Product Details
-                    </h2>
-                    <p className="text-center text-slate-400 mb-6 text-sm font-medium">Modify your product information</p>
-
-                    <form onSubmit={handleSubmit} className="space-y-3">
-                        {[
-                            { label: "Title", type: "text", value: Title, setter: setTitle, placeholder: "Product Title" },
-                            { label: "Description", type: "textarea", value: Description, setter: setDescription, placeholder: "Product Description" },
-                            { label: "Price", type: "number", value: Price, setter: setPrice, placeholder: "0.00" },
-                            { label: "Category", type: "text", value: Category, setter: setCategory, placeholder: "Category" },
-                            { label: "Quantity", type: "number", value: Quantity, setter: setQuantity, placeholder: "0" },
-                        ].map((field, idx) => (
-                            <div key={idx}>
-                                <label className="block text-xs font-bold text-slate-300 mb-2 uppercase tracking-wider">
-                                    {field.label}
-                                </label>
-                                {field.type === "textarea" ? (
-                                    <textarea
-                                        value={field.value}
-                                        onChange={(e)=> field.setter(e.target.value)}
-                                        className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600/50 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition duration-300 hover:bg-slate-700/70 hover:border-slate-600/70"
-                                        placeholder={field.placeholder}
-                                        required
-                                    />
-                                ) : (
-                                    <input
-                                        type={field.type}
-                                        value={field.value}
-                                        onChange={(e)=> field.setter(e.target.value)}
-                                        className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600/50 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition duration-300 hover:bg-slate-700/70 hover:border-slate-600/70"
-                                        placeholder={field.placeholder}
-                                        required
-                                    />
-                                )}
-                            </div>
-                        ))}
-
-                        <motion.button
-                            whileHover={{scale: 1.02, boxShadow: "0 20px 40px rgba(168, 85, 247, 0.3)"}}
-                            whileTap={{scale: 0.98}}
-                            type="submit"
-                            className="w-full bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-white font-bold py-3 rounded-xl hover:shadow-2xl transition duration-300 mt-4 text-lg tracking-wide"
-                        >
-                            Update Product
-                        </motion.button>
-                    </form>
-                </div>
-            </motion.div>
-        </div>
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    const result = await apiFetch(
+      `http://localhost:8000/e-2market/v1/products/updateProduct/${productId}`,
+      {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ Title, Description, Price, Category, Quantity }),
+      }
     );
+    if (result.ok) {
+      showAlert("Product updated successfully!", "success");
+      setTimeout(() => navigate("/seller?tab=products"), 1200);
+    } else {
+      showAlert(result.message);
+    }
+    setLoading(false);
+  };
+
+  const inputStyle = {
+    width: "100%",
+    padding: "11px 14px",
+    background: "rgba(51,65,85,0.5)",
+    border: "1px solid rgba(100,116,139,0.5)",
+    borderRadius: "10px",
+    color: "#fff",
+    fontSize: "14px",
+    outline: "none",
+    boxSizing: "border-box",
+  };
+
+  return (
+    <div style={{ minHeight: "100vh", background: "var(--bg-gradient)" }}>
+      <Navbar />
+
+      {alert && (
+        <div style={{
+          position: "fixed",
+          top: "80px",
+          left: "50%",
+          transform: "translateX(-50%)",
+          background: alert.type === "success" ? "rgba(16,185,129,0.15)" : "rgba(239,68,68,0.12)",
+          border: `1px solid ${alert.type === "success" ? "#10b981" : "#ef4444"}`,
+          color: alert.type === "success" ? "#6ee7b7" : "#fca5a5",
+          padding: "12px 28px",
+          borderRadius: "10px",
+          fontWeight: "600",
+          fontSize: "14px",
+          zIndex: 300,
+          backdropFilter: "blur(12px)",
+          whiteSpace: "nowrap",
+        }}>
+          {alert.msg}
+        </div>
+      )}
+
+      <div style={{ maxWidth: "600px", margin: "0 auto", padding: "32px 24px" }}>
+        <motion.div
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ duration: 0.5 }}
+          style={{
+            background: "rgba(30,27,75,0.7)",
+            backdropFilter: "blur(20px)",
+            borderRadius: "20px",
+            border: "1px solid rgba(139,92,246,0.25)",
+            padding: "36px",
+          }}
+        >
+          <h2 style={{
+            textAlign: "center",
+            fontSize: "24px",
+            fontWeight: "900",
+            background: "linear-gradient(90deg,#60a5fa,#a855f7,#ec4899)",
+            WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent",
+            marginBottom: "28px",
+          }}>
+            Update Product Details
+          </h2>
+
+          <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+            {[
+              { label: "Title", type: "text", value: Title, setter: setTitle, placeholder: "Product title" },
+              { label: "Price (Rs.)", type: "number", value: Price, setter: setPrice, placeholder: "0" },
+              { label: "Category", type: "text", value: Category, setter: setCategory, placeholder: "e.g. Electronics" },
+              { label: "Quantity", type: "number", value: Quantity, setter: setQuantity, placeholder: "0" },
+            ].map((field) => (
+              <div key={field.label}>
+                <label style={{ display: "block", fontSize: "11px", fontWeight: "700", color: "#94a3b8", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "6px" }}>
+                  {field.label}
+                </label>
+                <input
+                  style={inputStyle}
+                  type={field.type}
+                  value={field.value}
+                  onChange={(e) => field.setter(e.target.value)}
+                  placeholder={field.placeholder}
+                  required
+                />
+              </div>
+            ))}
+
+            <div>
+              <label style={{ display: "block", fontSize: "11px", fontWeight: "700", color: "#94a3b8", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "6px" }}>
+                Description
+              </label>
+              <textarea
+                value={Description}
+                onChange={(e) => setDescription(e.target.value)}
+                rows={4}
+                placeholder="Product description"
+                required
+                style={{ ...inputStyle, resize: "vertical" }}
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              style={{
+                padding: "13px",
+                background: loading ? "#374151" : "linear-gradient(135deg,#6d28d9,#a855f7,#ec4899)",
+                color: "#fff",
+                border: "none",
+                borderRadius: "12px",
+                fontWeight: "700",
+                fontSize: "15px",
+                cursor: loading ? "not-allowed" : "pointer",
+                marginTop: "8px",
+              }}
+            >
+              {loading ? "Updating..." : "Update Product"}
+            </button>
+          </form>
+
+          <p style={{ textAlign: "center", marginTop: "20px", fontSize: "13px", color: "#64748b" }}>
+            <Link to="/seller?tab=products" style={{ color: "#c084fc", fontWeight: "700", textDecoration: "none" }}>
+              Back to Your Products
+            </Link>
+          </p>
+        </motion.div>
+      </div>
+    </div>
+  );
 }
 
 export default EditProductDetails;
