@@ -37,7 +37,9 @@ A premium e-commerce marketplace where buyers can purchase products and sellers 
 
 ## Getting Started
 
-### Configuration (.env in Back-end/)
+### Configuration
+
+#### Backend Environment (.env in Back-end/)
 ```env
 PORT=8000
 MONGODB_URI=your_mongodb_connection_string
@@ -51,6 +53,13 @@ SMTP_PORT=587
 SMTP_USER=your_email@gmail.com
 SMTP_PASS=your_gmail_app_password
 ```
+
+#### Frontend Environment (.env in front-end/)
+Create a `.env` file in the `front-end` directory and configure the base API URL to point to your deployed backend address:
+```env
+REACT_APP_API_URL=https://your-deployed-backend-url.com/e-2market/v1
+```
+*(If left blank or omitted, it defaults to local dev environment: `http://localhost:8000/e-2market/v1`)*
 
 ### Running Locally
 
