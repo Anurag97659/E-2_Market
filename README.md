@@ -43,6 +43,7 @@ A premium e-commerce marketplace where buyers can purchase products and sellers 
 ```env
 PORT=8000
 MONGODB_URI=your_mongodb_connection_string
+CORS_ORIGIN=http://localhost:3000,https://e-2-market.onrender.com
 ACCESS_TOKEN_SECRET=your_access_token_secret
 ACCESS_TOKEN_EXPIRY=1d
 CLOUDINARY_CLOUD_NAME=your_cloudinary_name
