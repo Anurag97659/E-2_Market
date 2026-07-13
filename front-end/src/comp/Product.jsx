@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import Navbar from "./Navbar";
+import apiFetch from "../utils/apiFetch";
 
 function Product() {
   const [title, setTitle] = useState("");
@@ -54,19 +55,18 @@ function Product() {
     formData.append("Thumbnail", thumbnail);
     galleryImages.forEach((img) => formData.append("Images", img));
 
-    try {
-      const res = await fetch("http://localhost:8000/e-2market/v1/products/registerProduct", {
-        method: "POST",
-        credentials: "include",
-        body: formData,
-      });
-      const data = await res.json();
-      if (!res.ok) showAlert(data.message || "Product registration failed");
-      else {
-        showAlert("Product added successfully!", "success");
-        setTimeout(() => navigate("/seller?tab=products"), 1200);
-      }
-    } catch { showAlert("Network error"); }
+    const result = await apiFetch("http://localhost:8000/e-2market/v1/products/registerProduct", {
+      method: "POST",
+      credentials: "include",
+      body: formData,
+    });
+
+    if (result.ok) {
+      showAlert("Product added successfully!", "success");
+      setTimeout(() => navigate("/seller?tab=products"), 1200);
+    } else {
+      showAlert(result.message);
+    }
     setLoading(false);
   };
 
@@ -93,7 +93,7 @@ function Product() {
   };
 
   return (
-    <div style={{ minHeight: "100vh", background: "linear-gradient(135deg,#0f172a 0%,#1e1b4b 50%,#0f172a 100%)" }}>
+    <div style={{ minHeight: "100vh", background: "var(--bg-gradient)" }}>
       <Navbar />
 
       {alert && (

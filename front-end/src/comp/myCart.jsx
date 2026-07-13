@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Navbar from "./Navbar";
+import apiFetch from "../utils/apiFetch";
 
 function MyCart() {
   const [cartItems, setCartItems] = useState([]);
@@ -30,40 +31,38 @@ function MyCart() {
 
   const updateQuantity = async (productId, newQty) => {
     if (newQty < 1) { removeFromCart(productId); return; }
-    try {
-      const res = await fetch("http://localhost:8000/e-2market/v1/products/addToCart", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ productId, quantity: newQty }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setCartItems((prev) =>
-          prev.map((item) =>
-            (item.product?._id || item.product) === productId
-              ? { ...item, quantity: newQty }
-              : item
-          )
-        );
-      } else showAlert(data.message || "Failed to update quantity");
-    } catch { showAlert("Network error"); }
+    const result = await apiFetch("http://localhost:8000/e-2market/v1/products/addToCart", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ productId, quantity: newQty }),
+    });
+    if (result.ok) {
+      setCartItems((prev) =>
+        prev.map((item) =>
+          (item.product?._id || item.product) === productId
+            ? { ...item, quantity: newQty }
+            : item
+        )
+      );
+    } else {
+      showAlert(result.message);
+    }
   };
 
   const removeFromCart = async (productId) => {
-    try {
-      const res = await fetch("http://localhost:8000/e-2market/v1/products/removeFromCart", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ productId }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setCartItems((prev) => prev.filter((item) => (item.product?._id || item.product) !== productId));
-        showAlert("Item removed", "success");
-      } else showAlert(data.message || "Failed to remove");
-    } catch { showAlert("Network error"); }
+    const result = await apiFetch("http://localhost:8000/e-2market/v1/products/removeFromCart", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ productId }),
+    });
+    if (result.ok) {
+      setCartItems((prev) => prev.filter((item) => (item.product?._id || item.product) !== productId));
+      showAlert("Item removed from cart", "success");
+    } else {
+      showAlert(result.message);
+    }
   };
 
   const totalAmount = cartItems.reduce((acc, item) => {
@@ -72,7 +71,7 @@ function MyCart() {
   }, 0);
 
   return (
-    <div style={{ minHeight: "100vh", background: "linear-gradient(135deg,#0f172a 0%,#1e1b4b 50%,#0f172a 100%)" }}>
+    <div style={{ minHeight: "100vh", background: "var(--bg-gradient)" }}>
       <Navbar />
 
       {alert && (

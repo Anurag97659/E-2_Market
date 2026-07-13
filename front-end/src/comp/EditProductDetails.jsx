@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import Navbar from "./Navbar";
+import apiFetch from "../utils/apiFetch";
 
 function EditProductDetails() {
   const { productId } = useParams();
@@ -22,23 +23,20 @@ function EditProductDetails() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    try {
-      const response = await fetch(
-        `http://localhost:8000/e-2market/v1/products/updateProduct/${productId}`,
-        {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({ Title, Description, Price, Category, Quantity }),
-        }
-      );
-      const data = await response.json();
-      if (response.ok) {
-        showAlert("Product updated successfully!", "success");
-        setTimeout(() => navigate("/seller?tab=products"), 1200);
-      } else showAlert(data.message || "Update failed");
-    } catch {
-      showAlert("Network error");
+    const result = await apiFetch(
+      `http://localhost:8000/e-2market/v1/products/updateProduct/${productId}`,
+      {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ Title, Description, Price, Category, Quantity }),
+      }
+    );
+    if (result.ok) {
+      showAlert("Product updated successfully!", "success");
+      setTimeout(() => navigate("/seller?tab=products"), 1200);
+    } else {
+      showAlert(result.message);
     }
     setLoading(false);
   };
@@ -56,7 +54,7 @@ function EditProductDetails() {
   };
 
   return (
-    <div style={{ minHeight: "100vh", background: "linear-gradient(135deg,#0f172a 0%,#1e1b4b 50%,#0f172a 100%)" }}>
+    <div style={{ minHeight: "100vh", background: "var(--bg-gradient)" }}>
       <Navbar />
 
       {alert && (

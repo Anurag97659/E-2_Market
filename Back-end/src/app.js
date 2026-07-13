@@ -32,4 +32,16 @@ app.use('/e-2market/v1/users',userRoutes);
 app.use('/e-2market/v1/products',productRoutes);
 
 
+app.use((err, req, res, next) => {
+  const statusCode = err.statusCode || 500;
+  const message = err.message || "Something went wrong on the server";
+  
+  res.status(statusCode).json({
+    success: false,
+    statusCode,
+    message,
+    errors: err.errors || []
+  });
+});
+
 export default app;

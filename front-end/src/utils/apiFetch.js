@@ -11,8 +11,8 @@ const apiFetch = async (url, options = {}) => {
     let data = {};
     try {
       data = await res.json();
-    } catch {
-      // response body wasn't JSON (e.g., HTML error page from proxy)
+    }
+    catch {
       if (res.status >= 500) {
         return { ok: false, message: "Server error. Please try again later." };
       }
@@ -23,13 +23,13 @@ const apiFetch = async (url, options = {}) => {
       if (res.status >= 500) {
         return { ok: false, message: "Server error. Please try again later." };
       }
-      // 4xx – return the actual backend message
+     
       return { ok: false, message: data.message || "Something went wrong." };
     }
 
     return { ok: true, data: data.data !== undefined ? data.data : data };
   } catch (err) {
-    // fetch() itself threw – no network, DNS failure, CORS preflight blocked, etc.
+ 
     return { ok: false, message: "Network error. Please check your connection." };
   }
 };

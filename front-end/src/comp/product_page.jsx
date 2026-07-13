@@ -18,6 +18,7 @@ function ProductPage() {
   const [reviewMediaPreviews, setReviewMediaPreviews] = useState([]);
   const [reviewLoading, setReviewLoading] = useState(false);
   const [canReview, setCanReview] = useState(false);
+  const [activeMediaIndex, setActiveMediaIndex] = useState(null);
 
   const showAlert = (msg, type = "error") => {
     setAlert({ msg, type });
@@ -140,14 +141,14 @@ function ProductPage() {
     ));
 
   if (loading) return (
-    <div style={{ minHeight: "100vh", background: "linear-gradient(135deg,#0f172a,#1e1b4b,#0f172a)" }}>
+    <div style={{ minHeight: "100vh", background: "var(--bg-gradient)" }}>
       <Navbar />
       <div style={{ textAlign: "center", padding: "80px", color: "#94a3b8", fontSize: "18px" }}>Loading product...</div>
     </div>
   );
 
   if (!product) return (
-    <div style={{ minHeight: "100vh", background: "linear-gradient(135deg,#0f172a,#1e1b4b,#0f172a)" }}>
+    <div style={{ minHeight: "100vh", background: "var(--bg-gradient)" }}>
       <Navbar />
       <div style={{ textAlign: "center", padding: "80px", color: "#64748b" }}>Product not found.</div>
     </div>
@@ -156,7 +157,7 @@ function ProductPage() {
   const isOwner = user && product.Owner?._id === user._id;
 
   return (
-    <div style={{ minHeight: "100vh", background: "linear-gradient(135deg,#0f172a 0%,#1e1b4b 40%,#0f172a 100%)" }}>
+    <div style={{ minHeight: "100vh", background: "var(--bg-gradient)" }}>
       <Navbar />
 
       {alert && (
@@ -395,6 +396,269 @@ function ProductPage() {
               </form>
             </div>
           )}
+
+          {/* Customer Photos & Videos Gallery */}
+          {(() => {
+            const allReviewMedia = product.reviews
+              ? product.reviews.reduce((acc, r) => {
+                  if (r.media && r.media.length > 0) {
+                    r.media.forEach((url) => {
+                      acc.push({
+                        url,
+                        user: r.user?.fullname || r.user?.username || "Buyer",
+                        rating: r.rating,
+                        comment: r.comment,
+                      });
+                    });
+                  }
+                  return acc;
+                }, [])
+              : [];
+
+            if (allReviewMedia.length === 0) return null;
+
+            return (
+              <div style={{
+                marginBottom: "32px",
+                paddingBottom: "24px",
+                borderBottom: "1px solid rgba(139,92,246,0.15)",
+              }}>
+                <h3 style={{ color: "#e2e8f0", fontSize: "15px", fontWeight: "700", marginBottom: "16px" }}>
+                  Customer Photos & Videos ({allReviewMedia.length})
+                </h3>
+                <div style={{
+                  display: "flex",
+                  gap: "12px",
+                  overflowX: "auto",
+                  paddingBottom: "10px",
+                }}>
+                  {allReviewMedia.map((media, idx) => {
+                    const url = media.url;
+                    const isVideo = url.includes("/video/") || url.endsWith(".mp4") || url.endsWith(".mov") || url.endsWith(".webm");
+                    return (
+                      <div 
+                        key={idx} 
+                        onClick={() => setActiveMediaIndex(idx)}
+                        style={{
+                          flexShrink: 0,
+                          width: "100px",
+                          height: "100px",
+                          borderRadius: "10px",
+                          overflow: "hidden",
+                          border: "2px solid rgba(139,92,246,0.2)",
+                          position: "relative",
+                          background: "#000",
+                          cursor: "pointer",
+                        }}
+                      >
+                        {isVideo ? (
+                          <div style={{ width: "100%", height: "100%", position: "relative" }}>
+                            <video
+                              src={url}
+                              style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                            />
+                            <div style={{
+                              position: "absolute",
+                              bottom: "6px",
+                              left: "6px",
+                              background: "rgba(0,0,0,0.65)",
+                              color: "#fff",
+                              fontSize: "8px",
+                              fontWeight: "800",
+                              padding: "2px 6px",
+                              borderRadius: "4px",
+                              pointerEvents: "none",
+                            }}>
+                              ▶ VIDEO
+                            </div>
+                          </div>
+                        ) : (
+                          <img
+                            src={url}
+                            alt={`customer-media-${idx}`}
+                            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                          />
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Lightbox Modal overlay */}
+          {activeMediaIndex !== null && (() => {
+            const allReviewMedia = product.reviews
+              ? product.reviews.reduce((acc, r) => {
+                  if (r.media && r.media.length > 0) {
+                    r.media.forEach((url) => {
+                      acc.push({
+                        url,
+                        user: r.user?.fullname || r.user?.username || "Buyer",
+                        rating: r.rating,
+                        comment: r.comment,
+                      });
+                    });
+                  }
+                  return acc;
+                }, [])
+              : [];
+
+            const currentMedia = allReviewMedia[activeMediaIndex];
+            if (!currentMedia) return null;
+
+            const isVideo = currentMedia.url.includes("/video/") || currentMedia.url.endsWith(".mp4") || currentMedia.url.endsWith(".mov") || currentMedia.url.endsWith(".webm");
+
+            const handlePrev = (e) => {
+              e.stopPropagation();
+              setActiveMediaIndex((prev) => (prev > 0 ? prev - 1 : allReviewMedia.length - 1));
+            };
+
+            const handleNext = (e) => {
+              e.stopPropagation();
+              setActiveMediaIndex((prev) => (prev < allReviewMedia.length - 1 ? prev + 1 : 0));
+            };
+
+            return (
+              <div 
+                onClick={() => setActiveMediaIndex(null)}
+                style={{
+                  position: "fixed",
+                  top: 0, left: 0, width: "100vw", height: "100vh",
+                  background: "rgba(15,23,42,0.92)",
+                  backdropFilter: "blur(8px)",
+                  zIndex: 1000,
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  boxSizing: "border-box",
+                }}
+              >
+                {/* Header Information (Reviewer Name, Stars, Comment) */}
+                <div 
+                  onClick={(e) => e.stopPropagation()}
+                  style={{
+                    position: "absolute",
+                    top: "24px",
+                    left: "24px",
+                    right: "80px",
+                    background: "rgba(30,27,75,0.85)",
+                    border: "1px solid rgba(139,92,246,0.3)",
+                    padding: "16px 20px",
+                    borderRadius: "14px",
+                    maxWidth: "500px",
+                    boxShadow: "0 10px 30px rgba(0,0,0,0.5)",
+                    zIndex: 1010,
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "6px" }}>
+                    <span style={{ color: "#e2e8f0", fontWeight: "800", fontSize: "14px" }}>
+                      {currentMedia.user}
+                    </span>
+                    <div style={{ display: "flex", gap: "2.5px" }}>
+                      {StarRow({ rating: currentMedia.rating, size: "13px" })}
+                    </div>
+                  </div>
+                  {currentMedia.comment && (
+                    <p style={{ color: "#94a3b8", fontSize: "13px", margin: 0, lineHeight: "1.4" }}>
+                      {currentMedia.comment}
+                    </p>
+                  )}
+                </div>
+
+                {/* Close Button */}
+                <button 
+                  onClick={() => setActiveMediaIndex(null)}
+                  style={{
+                    position: "absolute", top: "24px", right: "24px",
+                    background: "rgba(255,255,255,0.1)",
+                    border: "none", color: "#fff", fontSize: "20px", fontWeight: "700",
+                    width: "44px", height: "44px", borderRadius: "50%",
+                    cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+                    transition: "background 0.2s",
+                    zIndex: 1010,
+                  }}
+                >
+                  ✕
+                </button>
+
+                {/* Left Arrow Button */}
+                {allReviewMedia.length > 1 && (
+                  <button 
+                    onClick={handlePrev}
+                    style={{
+                      position: "absolute", left: "24px",
+                      background: "rgba(255,255,255,0.08)",
+                      border: "none", color: "#fff", fontSize: "24px", fontWeight: "700",
+                      width: "56px", height: "56px", borderRadius: "50%",
+                      cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+                      transition: "background 0.2s, transform 0.1s",
+                      zIndex: 1010,
+                    }}
+                  >
+                    ‹
+                  </button>
+                )}
+
+                {/* Main Media Window */}
+                <div 
+                  onClick={(e) => e.stopPropagation()} 
+                  style={{
+                    maxWidth: "80%", maxHeight: "70%",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    boxShadow: "0 24px 48px rgba(0,0,0,0.8)", borderRadius: "16px", overflow: "hidden",
+                    border: "1px solid rgba(139,92,246,0.25)",
+                    background: "#000",
+                  }}
+                >
+                  {isVideo ? (
+                    <video 
+                      src={currentMedia.url} 
+                      controls 
+                      autoPlay
+                      key={currentMedia.url}
+                      style={{ maxWidth: "100%", maxHeight: "70vh", display: "block" }} 
+                    />
+                  ) : (
+                    <img 
+                      src={currentMedia.url} 
+                      alt="enlarged preview" 
+                      style={{ maxWidth: "100%", maxHeight: "70vh", objectFit: "contain", display: "block" }} 
+                    />
+                  )}
+                </div>
+
+                {/* Right Arrow Button */}
+                {allReviewMedia.length > 1 && (
+                  <button 
+                    onClick={handleNext}
+                    style={{
+                      position: "absolute", right: "24px",
+                      background: "rgba(255,255,255,0.08)",
+                      border: "none", color: "#fff", fontSize: "24px", fontWeight: "700",
+                      width: "56px", height: "56px", borderRadius: "50%",
+                      cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+                      transition: "background 0.2s, transform 0.1s",
+                      zIndex: 1010,
+                    }}
+                  >
+                    ›
+                  </button>
+                )}
+
+                {/* Counter / Page Indicator */}
+                <div style={{
+                  position: "absolute", bottom: "32px",
+                  color: "#94a3b8", fontSize: "14px", fontWeight: "600",
+                  background: "rgba(15,23,42,0.6)", padding: "8px 18px", borderRadius: "20px",
+                }}>
+                  {activeMediaIndex + 1} / {allReviewMedia.length}
+                </div>
+              </div>
+            );
+          })()}
 
           {/* ── REVIEWS LIST ── */}
           {product.reviews && product.reviews.length > 0 ? (

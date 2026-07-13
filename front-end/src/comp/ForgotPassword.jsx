@@ -74,7 +74,7 @@ function ForgotPassword() {
   const stepLabels = ["Enter Email", "Verify OTP", "New Password"];
 
   return (
-    <div style={{ minHeight: "100vh", background: "linear-gradient(135deg,#0f172a 0%,#1e1b4b 50%,#0f172a 100%)", display: "flex", alignItems: "center", justifyContent: "center", padding: "24px" }}>
+    <div style={{ minHeight: "100vh", background: "var(--bg-gradient)", display: "flex", alignItems: "center", justifyContent: "center", padding: "24px" }}>
       {alert && (
         <div style={{
           position: "fixed", top: "24px", left: "50%", transform: "translateX(-50%)",

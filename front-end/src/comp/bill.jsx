@@ -77,7 +77,7 @@ function Bill() {
   };
 
   return (
-    <div style={{ minHeight: "100vh", background: "linear-gradient(135deg,#0f172a 0%,#1e1b4b 50%,#0f172a 100%)" }}>
+    <div style={{ minHeight: "100vh", background: "var(--bg-gradient)" }}>
       <Navbar />
 
       {alert && (

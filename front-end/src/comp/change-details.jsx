@@ -23,17 +23,18 @@ function ChangeDetails() {
   const sendEmailOTP = async () => {
     if (!email.trim()) { showAlert("Enter the new email first"); return; }
     setLoading(true);
-    try {
-      const res = await fetch("http://localhost:8000/e-2market/v1/users/sendChangeEmailOTP", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ newEmail: email }),
-      });
-      const data = await res.json();
-      if (res.ok) { showAlert("OTP sent to new email", "success"); setOtpSent(true); }
-      else showAlert(data.message || "Failed to send OTP");
-    } catch { showAlert("Network error"); }
+    const result = await apiFetch("http://localhost:8000/e-2market/v1/users/sendChangeEmailOTP", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ newEmail: email }),
+    });
+    if (result.ok) {
+      showAlert("OTP sent to new email", "success");
+      setOtpSent(true);
+    } else {
+      showAlert(result.message);
+    }
     setLoading(false);
   };
 
@@ -77,7 +78,7 @@ function ChangeDetails() {
   };
 
   return (
-    <div style={{ minHeight: "100vh", background: "linear-gradient(135deg,#0f172a 0%,#1e1b4b 50%,#0f172a 100%)" }}>
+    <div style={{ minHeight: "100vh", background: "var(--bg-gradient)" }}>
       <Navbar />
 
       {alert && (

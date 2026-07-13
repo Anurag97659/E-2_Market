@@ -54,7 +54,7 @@ function Home() {
   };
 
   return (
-    <div style={{ minHeight: "100vh", background: "linear-gradient(135deg,#0f172a 0%,#1e1b4b 50%,#0f172a 100%)" }}>
+    <div style={{ minHeight: "100vh", background: "var(--bg-gradient)" }}>
       <Navbar />
 
       {/* Alert */}
@@ -157,18 +157,18 @@ function Home() {
                 <div
                   key={product._id}
                   style={{
-                    background: "rgba(30,27,75,0.6)",
-                    border: "1px solid rgba(139,92,246,0.2)",
+                    background: "var(--card-bg)",
+                    border: "1px solid var(--card-border)",
                     borderRadius: "16px",
                     overflow: "hidden",
                     display: "flex",
                     flexDirection: "column",
-                    transition: "transform 0.2s,box-shadow 0.2s",
+                    transition: "transform 0.2s,box-shadow 0.2s, background 0.3s, border-color 0.3s",
                     backdropFilter: "blur(10px)",
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.transform = "translateY(-4px)";
-                    e.currentTarget.style.boxShadow = "0 20px 40px rgba(139,92,246,0.2)";
+                    e.currentTarget.style.boxShadow = "0 20px 40px var(--shadow-main)";
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.transform = "translateY(0)";
@@ -188,7 +188,7 @@ function Home() {
                       style={{ textDecoration: "none" }}
                     >
                       <h3 style={{
-                        color: "#e2e8f0",
+                        color: "var(--text-main)",
                         fontWeight: "700",
                         fontSize: "15px",
                         marginBottom: "6px",
@@ -207,12 +207,12 @@ function Home() {
                         <span style={{ color: "#f59e0b", fontSize: "13px", letterSpacing: "1px" }}>
                           {stars(avgRating)}
                         </span>
-                        <span style={{ color: "#94a3b8", fontSize: "12px" }}>({reviewCount})</span>
+                        <span style={{ color: "var(--text-muted)", fontSize: "12px" }}>({reviewCount})</span>
                       </div>
                     )}
 
                     <p style={{
-                      color: "#94a3b8",
+                      color: "var(--text-muted)",
                       fontSize: "12px",
                       marginBottom: "8px",
                       display: "-webkit-box",

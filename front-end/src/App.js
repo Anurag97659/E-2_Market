@@ -17,6 +17,7 @@ import Bill from "./comp/bill";
 import Orders from "./comp/Orders";
 import ProductPage from "./comp/product_page";
 import Home from "./comp/Home";
+import Dash from "./comp/dashboard";
 
 function App() {
   return (
@@ -38,6 +39,7 @@ function App() {
         <Route path="/bill" element={<Bill />} />
         <Route path="/orders" element={<Orders />} />
         <Route path="/product_page/:productId" element={<ProductPage />} />
+        <Route path="/dash" element={<Dash />} /> 
       </Routes>
     </Router>
   );

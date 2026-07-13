@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import Navbar from "./Navbar";
+import apiFetch from "../utils/apiFetch";
 
 function EditProductImage() {
   const { productId } = useParams();
@@ -38,17 +39,16 @@ function EditProductImage() {
     galleryImages.forEach((img) => formData.append("Images", img));
 
     setLoading(true);
-    try {
-      const response = await fetch(
-        `http://localhost:8000/e-2market/v1/products/updateImage/${productId}`,
-        { method: "PUT", credentials: "include", body: formData }
-      );
-      const data = await response.json();
-      if (response.ok) {
-        showAlert("Images updated successfully!", "success");
-        setTimeout(() => navigate("/seller?tab=products"), 1200);
-      } else showAlert(data.message || "Update failed");
-    } catch { showAlert("Network error"); }
+    const result = await apiFetch(
+      `http://localhost:8000/e-2market/v1/products/updateImage/${productId}`,
+      { method: "PUT", credentials: "include", body: formData }
+    );
+    if (result.ok) {
+      showAlert("Images updated successfully!", "success");
+      setTimeout(() => navigate("/seller?tab=products"), 1200);
+    } else {
+      showAlert(result.message);
+    }
     setLoading(false);
   };
 
@@ -65,7 +65,7 @@ function EditProductImage() {
   };
 
   return (
-    <div style={{ minHeight: "100vh", background: "linear-gradient(135deg,#0f172a 0%,#1e1b4b 50%,#0f172a 100%)" }}>
+    <div style={{ minHeight: "100vh", background: "var(--bg-gradient)" }}>
       <Navbar />
 
       {alert && (

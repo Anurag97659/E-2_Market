@@ -29,7 +29,7 @@ function Profile() {
     : [];
 
   return (
-    <div style={{ minHeight: "100vh", background: "linear-gradient(135deg,#0f172a 0%,#1e1b4b 50%,#0f172a 100%)" }}>
+    <div style={{ minHeight: "100vh", background: "var(--bg-gradient)" }}>
       <Navbar />
 
       <div style={{ maxWidth: "640px", margin: "40px auto", padding: "0 24px" }}>
