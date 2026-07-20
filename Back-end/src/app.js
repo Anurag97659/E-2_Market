@@ -21,13 +21,13 @@ const app = express();
 // );
 const allowedOrigins = process.env.CORS_ORIGIN 
   ? process.env.CORS_ORIGIN.split(",") 
-  : ["http://localhost:3000", "https://e-2-market.onrender.com"];
+  : ["http://localhost:3000", "https://e-2-market.onrender.com","http://localhost:3001"];
 
 app.use(cors({
   origin: allowedOrigins,
   credentials: true
 }));
-app.use(express.json({ limit: '50mb' }));
+app.use(express.json({ limit: '500mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static('public'));
 app.use(cookieParser());
