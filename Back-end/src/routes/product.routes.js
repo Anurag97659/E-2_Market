@@ -10,6 +10,8 @@ import {
   addToCart,
   removeFromCart,
   getproductdetailsforproductpage,
+  comparePrices,
+  getPriceHistory,
   getSellerPendingOrders,
   getSellerSoldItems,
   confirmDeliveryBySeller,
@@ -64,5 +66,7 @@ router.post("/removeFromCart", verifyJWT, removeFromCart);
 
 // Product detail - public (no auth required)
 router.get("/getproductdetailsforproductpage/:productId", getproductdetailsforproductpage);
+router.get("/:productId/compare-prices", comparePrices);
+router.get("/:productId/price-history", getPriceHistory);
 
 export default router;

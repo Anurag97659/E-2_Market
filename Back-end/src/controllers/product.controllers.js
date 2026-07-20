@@ -5,6 +5,7 @@ import dotenv from "dotenv";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { Product } from "../models/product.model.js";
 import { User } from "../models/user.model.js";
+import { buildComparison } from "../utils/priceComparison.service.js";
 dotenv.config({ path: "/.env" });
 
 /* ─── REGISTER PRODUCT ────────────────────────────────────── */
@@ -47,6 +48,7 @@ const registerProduct = asyncHandler(async (req, res) => {
     Owner: userId,
     Thumbnail: thumbnailUpload.secure_url,
     Images: imagesUrls,
+    priceHistory: [{ price: Number(Price), changedAt: new Date() }],
   });
 
   const created = await Product.findById(product._id);
@@ -68,9 +70,23 @@ const updateProduct = asyncHandler(async (req, res) => {
 
   const userId = req.user._id;
 
+  // Fetch current product to detect a price change
+  const existing = await Product.findOne({ _id: productId, Owner: userId });
+  if (!existing) throw new ApiError(404, "Product not found");
+
+  const updateData = { Title, Description, Price, Category, Quantity };
+  const newPrice = Price !== undefined ? Number(Price) : null;
+
+  // Push a new priceHistory entry only when the price actually changes
+  if (newPrice !== null && newPrice !== existing.Price) {
+    await Product.findByIdAndUpdate(productId, {
+      $push: { priceHistory: { price: newPrice, changedAt: new Date() } },
+    });
+  }
+
   const product = await Product.findOneAndUpdate(
     { _id: productId, Owner: userId },
-    { $set: { Title, Description, Price, Category, Quantity } },
+    { $set: updateData },
     { new: true }
   );
 
@@ -394,6 +410,40 @@ const getproductdetailsforproductpage = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, product, "Product details fetched successfully"));
 });
 
+const comparePrices = asyncHandler(async (req, res) => {
+  const { productId } = req.params;
+  if (!productId) throw new ApiError(400, "Product ID is required");
+
+  const product = await Product.findById(productId).select("Title Price Thumbnail");
+  if (!product) throw new ApiError(404, "Product not found");
+
+  const comparison = await buildComparison({
+    title: product.Title,
+    price: product.Price,
+    thumbnail: product.Thumbnail,
+    productId: product._id,
+  });
+  return res.status(200).json(new ApiResponse(200, comparison, "Price comparison fetched successfully"));
+});
+
+/* ─── PRICE HISTORY ───────────────────────────────────────── */
+const getPriceHistory = asyncHandler(async (req, res) => {
+  const { productId } = req.params;
+  if (!productId) throw new ApiError(400, "Product ID is required");
+
+  const product = await Product.findById(productId).select("Title Price priceHistory");
+  if (!product) throw new ApiError(404, "Product not found");
+
+  // Sort history oldest → newest
+  const history = (product.priceHistory || []).slice().sort(
+    (a, b) => new Date(a.changedAt) - new Date(b.changedAt)
+  );
+
+  return res.status(200).json(
+    new ApiResponse(200, { title: product.Title, currentPrice: product.Price, history }, "Price history fetched")
+  );
+});
+
 export {
   registerProduct,
   updateProduct,
@@ -405,6 +455,8 @@ export {
   addToCart,
   removeFromCart,
   getproductdetailsforproductpage,
+  comparePrices,
+  getPriceHistory,
   getSellerPendingOrders,
   getSellerSoldItems,
   confirmDeliveryBySeller,
